@@ -3,7 +3,8 @@ package serviceimpl
 import (
 	"errors"
 	"fmt"
-	"github.com/PayRam/go-referral/service/param"
+	"github.com/PayRam/go-referral/models"
+	"github.com/PayRam/go-referral/service"
 	"gorm.io/gorm"
 )
 
@@ -11,7 +12,9 @@ type referrerService struct {
 	DB *gorm.DB
 }
 
-func NewReferrerService(db *gorm.DB) param.ReferrerService {
+var _ service.ReferrerService = &referrerService{}
+
+func NewReferrerService(db *gorm.DB) service.ReferrerService {
 	return &referrerService{DB: db}
 }
 
@@ -21,8 +24,8 @@ func NewReferrerService(db *gorm.DB) param.ReferrerService {
 //	return hex.EncodeToString(b)
 //}
 
-func (s *referrerService) CreateReferrer(referenceID, referenceType, code string, campaignID *uint) (*param.Referrer, error) {
-	referral := &param.Referrer{
+func (s *referrerService) CreateReferrer(referenceID, referenceType, code string, campaignID *uint) (*models.Referrer, error) {
+	referral := &models.Referrer{
 		Code:          code,
 		ReferenceID:   referenceID,
 		ReferenceType: referenceType,
@@ -34,8 +37,8 @@ func (s *referrerService) CreateReferrer(referenceID, referenceType, code string
 	return referral, nil
 }
 
-func (s *referrerService) GetReferrerByReference(referenceID, referenceType string) (*param.Referrer, error) {
-	var referral param.Referrer
+func (s *referrerService) GetReferrerByReference(referenceID, referenceType string) (*models.Referrer, error) {
+	var referral models.Referrer
 	if err := s.DB.Where("reference_id = ? AND reference_type = ?", referenceID, referenceType).First(&referral).Error; err != nil {
 		return nil, err
 	}
@@ -45,7 +48,7 @@ func (s *referrerService) GetReferrerByReference(referenceID, referenceType stri
 func (s *referrerService) AssignCampaign(referenceID, referenceType string, campaignID uint) error {
 	// Use a database transaction to ensure atomicity
 	return s.DB.Transaction(func(tx *gorm.DB) error {
-		var referral param.Referrer
+		var referral models.Referrer
 
 		// Fetch the referral row for the given reference
 		if err := tx.Where("reference_id = ? AND reference_type = ?", referenceID, referenceType).
@@ -71,7 +74,7 @@ func (s *referrerService) AssignCampaign(referenceID, referenceType string, camp
 func (s *referrerService) RemoveCampaign(referenceID, referenceType string) error {
 	// Use a database transaction to ensure atomicity
 	return s.DB.Transaction(func(tx *gorm.DB) error {
-		var referral param.Referrer
+		var referral models.Referrer
 
 		// Fetch the referral row for the given reference
 		if err := tx.Where("reference_id = ? AND reference_type = ?", referenceID, referenceType).

@@ -2,7 +2,9 @@ package serviceimpl
 
 import (
 	"errors"
-	"github.com/PayRam/go-referral/service/param"
+	"fmt"
+	"github.com/PayRam/go-referral/models"
+	"github.com/PayRam/go-referral/service"
 	"gorm.io/gorm"
 )
 
@@ -10,17 +12,26 @@ type eventService struct {
 	DB *gorm.DB
 }
 
-func NewEventService(db *gorm.DB) param.EventService {
+var _ service.EventService = &eventService{}
+
+func NewEventService(db *gorm.DB) service.EventService {
 	return &eventService{DB: db}
 }
 
 // CreateEvent creates a new event associated with a campaign
-func (s *eventService) CreateEvent(name, eventType, rewardType string, rewardValue float64, maxOccurrences, validityDays uint) (*param.Event, error) {
+func (s *eventService) CreateEvent(key, name, eventType, rewardType string, rewardValue float64, maxOccurrences, validityDays uint) (*models.Event, error) {
 	if rewardValue <= 0 {
 		return nil, errors.New("reward value must be greater than 0")
 	}
 
-	event := &param.Event{
+	// Validate unique key
+	var existingEvent models.Event
+	if err := s.DB.First(&existingEvent, "key = ?", key).Error; err == nil {
+		return nil, errors.New("event key already exists")
+	}
+
+	event := &models.Event{
+		Key:            key,
 		Name:           name,
 		EventType:      eventType,
 		RewardType:     rewardType,
@@ -36,10 +47,20 @@ func (s *eventService) CreateEvent(name, eventType, rewardType string, rewardVal
 }
 
 // UpdateEvent updates an existing event
-func (s *eventService) UpdateEvent(id uint, updates map[string]interface{}) (*param.Event, error) {
-	var event param.Event
-	if err := s.DB.First(&event, id).Error; err != nil {
+func (s *eventService) UpdateEvent(key string, updates map[string]interface{}) (*models.Event, error) {
+	var event models.Event
+	if err := s.DB.First(&event, "key = ?", key).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("event not found with key: %s", key)
+		}
 		return nil, err
+	}
+
+	// Validate updates
+	if rewardValue, ok := updates["rewardValue"]; ok {
+		if value, ok := rewardValue.(float64); ok && value <= 0 {
+			return nil, errors.New("reward value must be greater than 0")
+		}
 	}
 
 	// Apply updates
