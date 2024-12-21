@@ -1,7 +1,6 @@
 package param
 
 import (
-	"github.com/PayRam/go-referral/internal/serviceimpl"
 	"gorm.io/gorm"
 	"time"
 )
@@ -33,23 +32,6 @@ type RefereeService interface {
 	CreateRefereeByCode(code, referenceID, referenceType string) (*Referee, error)
 	GetRefereeByReference(referenceID, referenceType string) (*Referee, error)
 	GetRefereesByReferrer(referrerID uint) ([]Referee, error)
-}
-
-type ReferralService struct {
-	EventService
-	CampaignService
-	ReferrerService
-	RefereeService
-}
-
-// NewReferralService initializes the unified service
-func NewReferralService(db *gorm.DB) *ReferralService {
-	return &ReferralService{
-		EventService:    serviceimpl.NewEventService(db),
-		CampaignService: serviceimpl.NewCampaignService(db),
-		ReferrerService: serviceimpl.NewReferrerService(db),
-		RefereeService:  serviceimpl.NewRefereeService(db),
-	}
 }
 
 type Campaign struct {
