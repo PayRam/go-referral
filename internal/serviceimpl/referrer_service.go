@@ -18,18 +18,12 @@ func NewReferrerService(db *gorm.DB) service.ReferrerService {
 	return &referrerService{DB: db}
 }
 
-//func GenerateReferralCode() string {
-//	b := make([]byte, 8) // 8 bytes = 16 characters
-//	_, _ = rand.Read(b)
-//	return hex.EncodeToString(b)
-//}
-
-func (s *referrerService) CreateReferrer(referenceID, referenceType, code string, campaignID *uint) (*models.Referrer, error) {
+func (s *referrerService) CreateReferrer(referenceID, referenceType, code string, optionalCampaignID *uint) (*models.Referrer, error) {
 	referral := &models.Referrer{
 		Code:          code,
 		ReferenceID:   referenceID,
 		ReferenceType: referenceType,
-		CampaignID:    campaignID, // Can be nil for default campaign
+		CampaignID:    optionalCampaignID, // Can be nil for default campaign
 	}
 	if err := s.DB.Create(referral).Error; err != nil {
 		return nil, err
