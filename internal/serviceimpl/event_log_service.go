@@ -3,8 +3,8 @@ package serviceimpl
 import (
 	"errors"
 	"fmt"
+	"github.com/PayRam/go-referral/internal/db"
 	"github.com/PayRam/go-referral/models"
-	"github.com/PayRam/go-referral/service"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"time"
@@ -14,10 +14,10 @@ type eventLogService struct {
 	DB *gorm.DB
 }
 
-var _ service.EventLogService = &eventLogService{}
+//var _ service.EventLogService = &eventLogService{}
 
 // NewEventLogService initializes the EventLog service
-func NewEventLogService(db *gorm.DB) service.EventLogService {
+func NewEventLogService(db *gorm.DB) *eventLogService {
 	return &eventLogService{DB: db}
 }
 
@@ -44,15 +44,16 @@ func (s *eventLogService) CreateEventLog(eventKey string, referenceID, reference
 }
 
 // GetEventLogs retrieves event logs based on dynamic conditions
-func (s *eventLogService) GetEventLogs(conditions map[string]interface{}, offset, limit *int, sort *string) ([]models.EventLog, error) {
+func (s *eventLogService) GetEventLogs(conditions []db.QueryCondition, offset, limit *int, sort *string) ([]models.EventLog, error) {
 	var eventLogs []models.EventLog
 
 	// Start building the query
 	query := s.DB.Model(&models.EventLog{})
 
 	// Apply conditions dynamically
-	for key, value := range conditions {
-		query = query.Where(fmt.Sprintf("%s = ?", key), value)
+	for _, condition := range conditions {
+		// Build the query with operator
+		query = query.Where(fmt.Sprintf("%s %s ?", condition.Field, condition.Operator), condition.Value)
 	}
 
 	// Apply offset and limit

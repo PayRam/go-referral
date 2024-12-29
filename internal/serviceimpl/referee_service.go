@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/PayRam/go-referral/models"
-	"github.com/PayRam/go-referral/service"
 	"gorm.io/gorm"
 )
 
@@ -12,10 +11,10 @@ type refereeService struct {
 	DB *gorm.DB
 }
 
-var _ service.RefereeService = &refereeService{}
+//var _ service.RefereeService = &refereeService{}
 
 // NewRefereeService creates a new instance of the Referee service
-func NewRefereeService(db *gorm.DB) service.RefereeService {
+func NewRefereeService(db *gorm.DB) *refereeService {
 	return &refereeService{DB: db}
 }
 

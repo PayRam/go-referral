@@ -2,8 +2,9 @@ package serviceimpl
 
 import (
 	"errors"
+	"fmt"
+	"github.com/PayRam/go-referral/internal/db"
 	"github.com/PayRam/go-referral/models"
-	"github.com/PayRam/go-referral/service"
 	"gorm.io/gorm"
 	"time"
 )
@@ -12,9 +13,9 @@ type campaignService struct {
 	DB *gorm.DB
 }
 
-var _ service.CampaignService = &campaignService{}
+//var _ service.campaignService = &campaignService{}
 
-func NewCampaignService(db *gorm.DB) service.CampaignService {
+func NewCampaignService(db *gorm.DB) *campaignService {
 	return &campaignService{DB: db}
 }
 
@@ -54,7 +55,44 @@ func (s *campaignService) CreateCampaign(name, description string, startDate, en
 		return nil, err
 	}
 
+	// Reload the campaign with preloaded events
+	if err := s.DB.Preload("Events").First(campaign, campaign.ID).Error; err != nil {
+		return nil, err
+	}
 	return campaign, nil
+}
+
+// GetCampaigns retrieves campaigns based on dynamic conditions
+func (s *campaignService) GetCampaigns(conditions []db.QueryCondition, offset, limit int, sort *string) ([]models.Campaign, error) {
+	var campaigns []models.Campaign
+
+	// Start building the query
+	query := s.DB.Model(&models.Campaign{})
+	// Apply conditions dynamically
+	for _, condition := range conditions {
+		// Build the query with operator
+		query = query.Where(fmt.Sprintf("%s %s ?", condition.Field, condition.Operator), condition.Value)
+	}
+
+	// Apply offset and limit
+	if offset > 0 {
+		query = query.Offset(offset)
+	}
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+
+	// Apply sorting
+	if sort != nil {
+		query = query.Order(*sort)
+	}
+
+	// Execute the query
+	if err := query.Find(&campaigns).Error; err != nil {
+		return nil, err
+	}
+
+	return campaigns, nil
 }
 
 // UpdateCampaign updates an existing campaign

@@ -1,10 +1,9 @@
 package service
 
 import (
-	"github.com/PayRam/go-referral/internal/serviceimpl"
+	"github.com/PayRam/go-referral/internal/db"
 	"github.com/PayRam/go-referral/models"
 	"github.com/shopspring/decimal"
-	"gorm.io/gorm"
 	"time"
 )
 
@@ -12,11 +11,13 @@ import (
 type EventService interface {
 	CreateEvent(key, name, eventType, rewardType string, rewardValue float64, maxOccurrences, validityDays uint) (*models.Event, error)
 	UpdateEvent(key string, updates map[string]interface{}) (*models.Event, error)
+	GetAll() ([]models.Event, error)
 }
 
 // CampaignService handles operations related to campaigns
 type CampaignService interface {
 	CreateCampaign(name, description string, startDate, endDate time.Time, isActive bool, events []models.Event) (*models.Campaign, error)
+	GetCampaigns(conditions []db.QueryCondition, offset, limit int, sort *string) ([]models.Campaign, error)
 	UpdateCampaign(id uint, updates map[string]interface{}) (*models.Campaign, error)
 	UpdateCampaignEvents(campaignID uint, events []models.Event) error
 	SetDefaultCampaign(campaignID uint) error
@@ -39,7 +40,7 @@ type RefereeService interface {
 
 type EventLogService interface {
 	CreateEventLog(eventKey string, referenceID, referenceType *string, amount *decimal.Decimal, data *string) (*models.EventLog, error)
-	GetEventLogs(conditions map[string]interface{}, offset, limit *int, sort *string) ([]models.EventLog, error)
+	GetEventLogs(conditions []db.QueryCondition, offset, limit *int, sort *string) ([]models.EventLog, error)
 }
 
 type RewardCalculator interface {
@@ -50,25 +51,4 @@ type Worker interface {
 	AddCustomRewardCalculator(eventKey string, calculator RewardCalculator) error
 	RemoveCustomRewardCalculator(eventKey string) error
 	ProcessPendingEvents() error
-}
-
-type ReferralService struct {
-	EventService
-	CampaignService
-	ReferrerService
-	RefereeService
-	EventLogService
-	Worker
-}
-
-// NewReferralService initializes the unified service
-func NewReferralService(db *gorm.DB) *ReferralService {
-	return &ReferralService{
-		EventService:    serviceimpl.NewEventService(db),
-		CampaignService: serviceimpl.NewCampaignService(db),
-		ReferrerService: serviceimpl.NewReferrerService(db),
-		RefereeService:  serviceimpl.NewRefereeService(db),
-		EventLogService: serviceimpl.NewEventLogService(db),
-		Worker:          serviceimpl.NewWorkerService(db),
-	}
 }

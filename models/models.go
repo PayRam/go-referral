@@ -14,7 +14,7 @@ type Campaign struct {
 	EndDate     time.Time `gorm:"not null;index"`
 	IsActive    bool      `gorm:"default:true;index"`
 	IsDefault   bool      `gorm:"default:false;index"` // Only one default campaign
-	Events      []Event   `gorm:"many2many:referral_campaign_events;joinForeignKey:CampaignID;joinReferences:Key"`
+	Events      []Event   `gorm:"many2many:referral_campaign_events;"`
 }
 
 func (Campaign) TableName() string {
@@ -23,10 +23,10 @@ func (Campaign) TableName() string {
 
 // Event represents an action within a campaign that can trigger a reward
 type Event struct {
-	Key            string     `gorm:"primaryKey;size:36;not null"` // Custom string primary key (e.g., UUID)
-	Name           string     `gorm:"size:255;not null"`           // Event name (not unique anymore)
-	EventType      string     `gorm:"size:100;not null;index"`     // e.g., "signup", "payment"
-	RewardType     string     `gorm:"size:50;not null;index"`      // e.g., "flat_fee", "percentage"
+	Key            string     `gorm:"primaryKey;type:varchar(50);not null"` // Custom string primary key (e.g., UUID)
+	Name           string     `gorm:"size:255;not null"`                    // Event name (not unique anymore)
+	EventType      string     `gorm:"size:100;not null;index"`              // e.g., "signup", "payment"
+	RewardType     string     `gorm:"size:50;not null;index"`               // e.g., "flat_fee", "percentage"
 	RewardValue    float64    `gorm:"not null"`
 	MaxOccurrences uint       `gorm:"default:0"`      // 0 for unlimited
 	ValidityDays   uint       `gorm:"default:0"`      // 0 for no time limit
@@ -40,8 +40,8 @@ func (Event) TableName() string {
 }
 
 type CampaignEvent struct {
-	CampaignID uint     `gorm:"not null;index:idx_referral_campaign_event,unique"`
-	EventKey   string   `gorm:"not null;index:idx_referral_campaign_event,unique"`
+	CampaignID uint     `gorm:"not null;index:idx_referral_campaign_event"`
+	EventKey   string   `gorm:"not null;type:varchar(50);index:idx_referral_campaign_event"`
 	Campaign   Campaign `gorm:"foreignKey:CampaignID;references:ID"` // Foreign key to Campaign
 	Event      Event    `gorm:"foreignKey:EventKey;references:Key"`  // Foreign key to Event
 }
@@ -52,9 +52,9 @@ func (CampaignEvent) TableName() string {
 
 type Referrer struct {
 	gorm.Model
-	Code          string `gorm:"size:50;uniqueIndex;not null"`        // Unique referral code
-	ReferenceID   string `gorm:"not null;index:idx_reference,unique"` // Composite index
-	ReferenceType string `gorm:"size:100;not null;index:idx_reference,unique"`
+	Code          string `gorm:"size:50;uniqueIndex;not null"`                         // Unique referral code
+	ReferenceID   string `gorm:"not null;index:idx_referrer_reference_id_type,unique"` // Composite index
+	ReferenceType string `gorm:"size:100;not null;index:idx_referrer_reference_id_type,unique"`
 	CampaignID    *uint  `gorm:"default:null"`
 }
 
@@ -64,9 +64,9 @@ func (Referrer) TableName() string {
 
 type Referee struct {
 	gorm.Model
-	ReferrerID    uint      `gorm:"not null"`                            // ID of the Referrer (Foreign Key to Referrer table)
-	ReferenceID   string    `gorm:"not null;index:idx_reference,unique"` // Composite index
-	ReferenceType string    `gorm:"size:100;not null;index:idx_reference,unique"`
+	ReferrerID    uint      `gorm:"not null"`                                            // ID of the Referrer (Foreign Key to Referrer table)
+	ReferenceID   string    `gorm:"not null;index:idx_referee_reference_id_type,unique"` // Composite index
+	ReferenceType string    `gorm:"size:100;not null;index:idx_referee_reference_id_type,unique"`
 	Referrer      *Referrer `gorm:"foreignKey:ReferrerID" json:"referrer,omitempty"`
 }
 

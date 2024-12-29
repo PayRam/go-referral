@@ -14,10 +14,13 @@ type worker struct {
 	CustomCalculators       map[string]service.RewardCalculator // Map of EventID to custom calculators
 }
 
-var _ service.Worker = &worker{}
+//var _ service.Worker = &worker{}
 
-func NewWorkerService(db *gorm.DB) service.Worker {
-	return &worker{DB: db}
+func NewWorkerService(db *gorm.DB) *worker {
+	return &worker{
+		DefaultRewardCalculator: NewDefaultRewardCalculator(),
+		DB:                      db,
+	}
 }
 
 func (w *worker) AddCustomRewardCalculator(eventKey string, calculator service.RewardCalculator) error {

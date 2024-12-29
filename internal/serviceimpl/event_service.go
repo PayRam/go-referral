@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/PayRam/go-referral/models"
-	"github.com/PayRam/go-referral/service"
 	"gorm.io/gorm"
 )
 
@@ -12,9 +11,9 @@ type eventService struct {
 	DB *gorm.DB
 }
 
-var _ service.EventService = &eventService{}
+//var _ service.EventService = &eventService{}
 
-func NewEventService(db *gorm.DB) service.EventService {
+func NewEventService(db *gorm.DB) *eventService {
 	return &eventService{DB: db}
 }
 
@@ -24,9 +23,13 @@ func (s *eventService) CreateEvent(key, name, eventType, rewardType string, rewa
 		return nil, errors.New("reward value must be greater than 0")
 	}
 
-	// Validate unique key
-	var existingEvent models.Event
-	if err := s.DB.First(&existingEvent, "key = ?", key).Error; err == nil {
+	// Check if the event key already exists
+	var count int64
+	if err := s.DB.Model(&models.Event{}).Where("key = ?", key).Count(&count).Error; err != nil {
+		return nil, fmt.Errorf("failed to check existing event: %w", err)
+	}
+
+	if count > 0 {
 		return nil, errors.New("event key already exists")
 	}
 
@@ -41,7 +44,7 @@ func (s *eventService) CreateEvent(key, name, eventType, rewardType string, rewa
 	}
 
 	if err := s.DB.Create(event).Error; err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create event: %w", err)
 	}
 	return event, nil
 }
@@ -68,4 +71,15 @@ func (s *eventService) UpdateEvent(key string, updates map[string]interface{}) (
 		return nil, err
 	}
 	return &event, nil
+}
+
+func (s *eventService) GetAll() ([]models.Event, error) {
+	var events []models.Event
+
+	// Fetch all events
+	if err := s.DB.Find(&events).Error; err != nil {
+		return nil, err
+	}
+
+	return events, nil
 }

@@ -4,14 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/PayRam/go-referral/models"
-	"github.com/PayRam/go-referral/service"
 	"github.com/shopspring/decimal"
 )
 
 type DefaultRewardCalculator struct{}
 
-// Ensure AccountAddressServiceImpl implements AddressPoolService.
-var _ service.RewardCalculator = &DefaultRewardCalculator{}
+//var _ service.RewardCalculator = &DefaultRewardCalculator{}
+
+func NewDefaultRewardCalculator() *DefaultRewardCalculator {
+	return &DefaultRewardCalculator{}
+}
 
 func (d *DefaultRewardCalculator) CalculateReward(
 	eventLog models.EventLog,

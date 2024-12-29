@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/PayRam/go-referral/models"
-	"github.com/PayRam/go-referral/service"
 	"gorm.io/gorm"
 )
 
@@ -12,9 +11,9 @@ type referrerService struct {
 	DB *gorm.DB
 }
 
-var _ service.ReferrerService = &referrerService{}
+//var _ service.ReferrerService = &referrerService{}
 
-func NewReferrerService(db *gorm.DB) service.ReferrerService {
+func NewReferrerService(db *gorm.DB) *referrerService {
 	return &referrerService{DB: db}
 }
 
