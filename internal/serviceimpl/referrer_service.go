@@ -17,17 +17,46 @@ func NewReferrerService(db *gorm.DB) *referrerService {
 	return &referrerService{DB: db}
 }
 
-func (s *referrerService) CreateReferrer(referenceID, referenceType, code string, optionalCampaignID *uint) (*models.Referrer, error) {
-	referral := &models.Referrer{
+func (s *referrerService) CreateReferrer(referenceID, referenceType, code string, campaignIDs []uint) (*models.Referrer, error) {
+	// Create the referrer
+	referrer := &models.Referrer{
 		Code:          code,
 		ReferenceID:   referenceID,
 		ReferenceType: referenceType,
-		CampaignID:    optionalCampaignID, // Can be nil for default campaign
 	}
-	if err := s.DB.Create(referral).Error; err != nil {
+
+	// Use a transaction to ensure atomicity
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		// Save the referrer
+		if err := tx.Create(referrer).Error; err != nil {
+			return err
+		}
+
+		// Associate campaigns if provided
+		if len(campaignIDs) > 0 {
+			for _, campaignID := range campaignIDs {
+				association := &models.ReferrerCampaign{
+					ReferrerID: referrer.ID,
+					CampaignID: campaignID,
+				}
+				if err := tx.Create(association).Error; err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
-	return referral, nil
+
+	// Reload the referrer with preloaded campaigns
+	if err := s.DB.Preload("Campaigns").First(referrer, referrer.ID).Error; err != nil {
+		return nil, fmt.Errorf("failed to preload campaigns for referrer: %w", err)
+	}
+
+	return referrer, nil
 }
 
 func (s *referrerService) GetReferrerByReference(referenceID, referenceType string) (*models.Referrer, error) {
@@ -38,52 +67,34 @@ func (s *referrerService) GetReferrerByReference(referenceID, referenceType stri
 	return &referral, nil
 }
 
-func (s *referrerService) AssignCampaign(referenceID, referenceType string, campaignID uint) error {
+func (s *referrerService) UpdateCampaigns(referenceID, referenceType string, campaignIDs []uint) error {
 	// Use a database transaction to ensure atomicity
 	return s.DB.Transaction(func(tx *gorm.DB) error {
-		var referral models.Referrer
+		var referrer models.Referrer
 
-		// Fetch the referral row for the given reference
+		// Fetch the referrer for the given reference
 		if err := tx.Where("reference_id = ? AND reference_type = ?", referenceID, referenceType).
-			First(&referral).Error; err != nil {
+			First(&referrer).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("referral not found for reference_id=%s and reference_type=%s", referenceID, referenceType)
+				return fmt.Errorf("referrer not found for reference_id=%s and reference_type=%s", referenceID, referenceType)
 			}
 			return err
 		}
 
-		// Assign the campaign
-		referral.CampaignID = &campaignID
-
-		// Save the updated referral
-		if err := tx.Save(&referral).Error; err != nil {
-			return err
+		// Remove existing campaign associations
+		if err := tx.Unscoped().Where("referrer_id = ?", referrer.ID).Delete(&models.ReferrerCampaign{}).Error; err != nil {
+			return fmt.Errorf("failed to remove existing campaign associations: %w", err)
 		}
 
-		return nil
-	})
-}
-
-func (s *referrerService) RemoveCampaign(referenceID, referenceType string) error {
-	// Use a database transaction to ensure atomicity
-	return s.DB.Transaction(func(tx *gorm.DB) error {
-		var referral models.Referrer
-
-		// Fetch the referral row for the given reference
-		if err := tx.Where("reference_id = ? AND reference_type = ?", referenceID, referenceType).
-			First(&referral).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("referral not found for reference_id=%s and reference_type=%s", referenceID, referenceType)
+		// Add new campaign associations
+		for _, campaignID := range campaignIDs {
+			association := &models.ReferrerCampaign{
+				ReferrerID: referrer.ID,
+				CampaignID: campaignID,
 			}
-			return err
-		}
-
-		// Remove the campaign
-		referral.CampaignID = nil
-
-		// Save the updated referral
-		if err := tx.Save(&referral).Error; err != nil {
-			return err
+			if err := tx.Create(association).Error; err != nil {
+				return fmt.Errorf("failed to associate campaign %d: %w", campaignID, err)
+			}
 		}
 
 		return nil

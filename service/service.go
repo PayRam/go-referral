@@ -9,14 +9,14 @@ import (
 
 // EventService handles operations related to events
 type EventService interface {
-	CreateEvent(key, name, eventType, rewardType string, rewardValue float64, maxOccurrences, validityDays uint) (*models.Event, error)
+	CreateEvent(key, name, eventType string) (*models.Event, error)
 	UpdateEvent(key string, updates map[string]interface{}) (*models.Event, error)
 	GetAll() ([]models.Event, error)
 }
 
 // CampaignService handles operations related to campaigns
 type CampaignService interface {
-	CreateCampaign(name, description string, startDate, endDate time.Time, isActive bool, events []models.Event) (*models.Campaign, error)
+	CreateCampaign(name, description string, startDate, endDate time.Time, isActive bool, events []models.Event, rewardType string, rewardValue float64, maxOccurrences uint, validityDays uint, budget *decimal.Decimal) (*models.Campaign, error)
 	GetCampaigns(conditions []db.QueryCondition, offset, limit int, sort *string) ([]models.Campaign, error)
 	UpdateCampaign(id uint, updates map[string]interface{}) (*models.Campaign, error)
 	UpdateCampaignEvents(campaignID uint, events []models.Event) error
@@ -25,10 +25,9 @@ type CampaignService interface {
 
 // ReferrerService handles operations related to referral codes
 type ReferrerService interface {
-	CreateReferrer(referenceID, referenceType, code string, campaignID *uint) (*models.Referrer, error)
+	CreateReferrer(referenceID, referenceType, code string, campaignIDs []uint) (*models.Referrer, error)
 	GetReferrerByReference(referenceID, referenceType string) (*models.Referrer, error)
-	AssignCampaign(referenceID, referenceType string, campaignID uint) error
-	RemoveCampaign(referenceID, referenceType string) error
+	UpdateCampaigns(referenceID, referenceType string, campaignIDs []uint) error
 }
 
 // RefereeService handles operations related to referral codes
@@ -44,7 +43,7 @@ type EventLogService interface {
 }
 
 type RewardCalculator interface {
-	CalculateReward(eventLog models.EventLog, event models.Event, campaign models.Campaign, referee models.Referee, referrer models.Referrer) (*models.Reward, error)
+	CalculateReward(eventLog models.EventLog, campaign models.Campaign, referee models.Referee, referrer models.Referrer) (*models.Reward, error)
 }
 
 type Worker interface {

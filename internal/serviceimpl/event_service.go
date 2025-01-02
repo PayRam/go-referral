@@ -18,11 +18,7 @@ func NewEventService(db *gorm.DB) *eventService {
 }
 
 // CreateEvent creates a new event associated with a campaign
-func (s *eventService) CreateEvent(key, name, eventType, rewardType string, rewardValue float64, maxOccurrences, validityDays uint) (*models.Event, error) {
-	if rewardValue <= 0 {
-		return nil, errors.New("reward value must be greater than 0")
-	}
-
+func (s *eventService) CreateEvent(key, name, eventType string) (*models.Event, error) {
 	// Check if the event key already exists
 	var count int64
 	if err := s.DB.Model(&models.Event{}).Where("key = ?", key).Count(&count).Error; err != nil {
@@ -34,13 +30,9 @@ func (s *eventService) CreateEvent(key, name, eventType, rewardType string, rewa
 	}
 
 	event := &models.Event{
-		Key:            key,
-		Name:           name,
-		EventType:      eventType,
-		RewardType:     rewardType,
-		RewardValue:    rewardValue,
-		MaxOccurrences: maxOccurrences,
-		ValidityDays:   validityDays,
+		Key:       key,
+		Name:      name,
+		EventType: eventType,
 	}
 
 	if err := s.DB.Create(event).Error; err != nil {
@@ -57,13 +49,6 @@ func (s *eventService) UpdateEvent(key string, updates map[string]interface{}) (
 			return nil, fmt.Errorf("event not found with key: %s", key)
 		}
 		return nil, err
-	}
-
-	// Validate updates
-	if rewardValue, ok := updates["rewardValue"]; ok {
-		if value, ok := rewardValue.(float64); ok && value <= 0 {
-			return nil, errors.New("reward value must be greater than 0")
-		}
 	}
 
 	// Apply updates

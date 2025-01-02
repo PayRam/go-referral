@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"github.com/PayRam/go-referral/models"
 	"github.com/PayRam/go-referral/service"
+	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
+	"strings"
 )
 
 type worker struct {
@@ -50,107 +52,153 @@ func (w *worker) RemoveCustomRewardCalculator(eventKey string) error {
 }
 
 func (w *worker) ProcessPendingEvents() error {
-	// Fetch all pending EventLog entries
-	var pendingEventLogs []models.EventLog
-	if err := w.DB.Where("status = ?", "pending").Find(&pendingEventLogs).Error; err != nil {
-		return fmt.Errorf("failed to fetch pending EventLogs: %w", err)
+	// Fetch all active campaigns with preloaded events
+	var campaigns []models.Campaign
+	if err := w.DB.Preload("Events").Where("is_active = ?", true).Find(&campaigns).Error; err != nil {
+		return fmt.Errorf("failed to fetch campaigns: %w", err)
 	}
 
-	// Process each pending EventLog
-	for _, eventLog := range pendingEventLogs {
+	// Traverse each campaign
+	for _, campaign := range campaigns {
 		err := w.DB.Transaction(func(tx *gorm.DB) error {
-			// Check if a reward already exists for this EventLog
-			var existingReward models.Reward
-			if err := tx.Where("event_log_id = ?", eventLog.ID).First(&existingReward).Error; err == nil {
-				// Reward already exists, mark EventLog as processed
-				eventLog.Status = "processed"
-				eventLog.FailureReason = nil
-				return tx.Save(&eventLog).Error
+			// Fetch pending EventLogs for this campaign's events
+			eventKeys := getEventKeys(campaign.Events)
+			var eventLogs []models.EventLog
+			if err := tx.Where("status = ? AND event_key IN (?)", "pending", eventKeys).Find(&eventLogs).Error; err != nil {
+				return fmt.Errorf("failed to fetch pending EventLogs for campaign %d: %w", campaign.ID, err)
 			}
 
-			// Fetch referee using ReferenceID and ReferenceType
-			var referee models.Referee
-			if err := tx.Where("reference_id = ? AND reference_type = ?", eventLog.ReferenceID, eventLog.ReferenceType).
-				First(&referee).Error; err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					eventLog.Status = "failed"
-					reason := "Referee not found"
-					eventLog.FailureReason = &reason
-					return tx.Save(&eventLog).Error
+			// Group EventLogs by ReferenceID and ReferenceType
+			eventLogGroups := groupEventLogs(eventLogs)
+
+			// Traverse each group of EventLogs
+			for referenceKey, logs := range eventLogGroups {
+				referenceID, referenceType := parseReferenceKey(referenceKey)
+
+				// Check if all campaign events are satisfied
+				allEventsSatisfied := areAllCampaignEventsSatisfied(campaign.Events, logs)
+				if !allEventsSatisfied {
+					continue // Skip if not all events are satisfied
 				}
-				return fmt.Errorf("failed to fetch referee for EventLog %d: %w", eventLog.ID, err)
-			}
 
-			// Fetch referrer and associated campaign
-			var referrer models.Referrer
-			if err := tx.First(&referrer, referee.ReferrerID).Error; err != nil {
-				eventLog.Status = "failed"
-				reason := "Referrer not found"
-				eventLog.FailureReason = &reason
-				return tx.Save(&eventLog).Error
-			}
+				// Check if reward for this campaign and referee already exists
+				var existingReward models.Reward
+				if err := tx.Where("campaign_id = ? AND reference_id = ? AND reference_type = ?",
+					campaign.ID, referenceID, referenceType).First(&existingReward).Error; err == nil {
+					continue // Reward already exists
+				}
 
-			var campaign models.Campaign
-			if err := tx.First(&campaign, referrer.CampaignID).Error; err != nil {
-				eventLog.Status = "failed"
-				reason := "Campaign not found"
-				eventLog.FailureReason = &reason
-				return tx.Save(&eventLog).Error
-			}
+				// Calculate reward
+				rewardAmount, err := calculateReward(tx, campaign, logs)
+				if err != nil {
+					return fmt.Errorf("failed to calculate reward for campaign %d: %w", campaign.ID, err)
+				}
 
-			// Ensure the EventKey is associated with the campaign
-			var campaignEvent models.CampaignEvent
-			if err := tx.Where("campaign_id = ? AND event_key = ?", campaign.ID, eventLog.EventKey).
-				First(&campaignEvent).Error; err != nil {
-				eventLog.Status = "failed"
-				reason := "EventKey not associated with campaign"
-				eventLog.FailureReason = &reason
-				return tx.Save(&eventLog).Error
-			}
+				// Create the reward
+				reward := &models.Reward{
+					CampaignID:    campaign.ID,
+					ReferenceID:   referenceID,
+					ReferenceType: referenceType,
+					Amount:        decimal.NewFromFloat(rewardAmount),
+					Status:        "pending",
+				}
+				if err := tx.Create(reward).Error; err != nil {
+					return fmt.Errorf("failed to create reward for campaign %d: %w", campaign.ID, err)
+				}
 
-			// Fetch the corresponding event rule
-			var event models.Event
-			if err := tx.First(&event, "key = ?", eventLog.EventKey).Error; err != nil {
-				eventLog.Status = "failed"
-				reason := "Event rule not found"
-				eventLog.FailureReason = &reason
-				return tx.Save(&eventLog).Error
+				// Mark associated EventLogs as processed
+				for _, log := range logs {
+					log.Status = "processed"
+					log.FailureReason = nil
+					if err := tx.Save(&log).Error; err != nil {
+						return fmt.Errorf("failed to update EventLog status: %w", err)
+					}
+				}
 			}
-
-			// Select the appropriate calculator
-			calculator := w.DefaultRewardCalculator
-			if customCalculator, exists := w.CustomCalculators[event.Key]; exists {
-				calculator = customCalculator
-			}
-
-			// Calculate the reward
-			reward, err := calculator.CalculateReward(eventLog, event, campaign, referee, referrer)
-			if err != nil {
-				eventLog.Status = "failed"
-				eventLog.FailureReason = ptr(fmt.Sprintf("Reward calculation failed: %v", err))
-				return tx.Save(&eventLog).Error
-			}
-
-			// Create the reward
-			if err := tx.Create(reward).Error; err != nil {
-				eventLog.Status = "failed"
-				eventLog.FailureReason = ptr(fmt.Sprintf("Failed to create reward: %v", err))
-				return tx.Save(&eventLog).Error
-			}
-
-			// Mark the EventLog as processed
-			eventLog.Status = "processed"
-			eventLog.FailureReason = nil
-			return tx.Save(&eventLog).Error
+			return nil
 		})
 
 		if err != nil {
-			// Log the error and continue processing other EventLogs
-			fmt.Printf("Error processing EventLog %d: %v\n", eventLog.ID, err)
+			// Log the error and continue with other campaigns
+			fmt.Printf("Error processing campaign %d: %v\n", campaign.ID, err)
 		}
 	}
 
 	return nil
+}
+
+func areAllCampaignEventsSatisfied(events []models.Event, logs []models.EventLog) bool {
+	eventKeys := make(map[string]bool)
+	for _, log := range logs {
+		eventKeys[log.EventKey] = true
+	}
+
+	for _, event := range events {
+		if !eventKeys[event.Key] {
+			return false
+		}
+	}
+	return true
+}
+
+func calculateReward(tx *gorm.DB, campaign models.Campaign, logs []models.EventLog) (float64, error) {
+	if campaign.RewardType == "flat_fee" {
+		return campaign.RewardValue, nil
+	}
+
+	if campaign.RewardType == "percentage" {
+		// Sum the total amount from event logs for percentage calculation
+		var totalAmount decimal.Decimal
+		if err := tx.Model(&models.EventLog{}).
+			Where("id IN (?)", getEventLogIDs(logs)).
+			Select("SUM(amount)").
+			Scan(&totalAmount).Error; err != nil {
+			return 0, err
+		}
+		return (totalAmount.InexactFloat64() * campaign.RewardValue) / 100, nil
+	}
+
+	return 0, fmt.Errorf("unknown reward type: %s", campaign.RewardType)
+}
+
+func getEventLogIDs(logs []models.EventLog) []uint {
+	var ids []uint
+	for _, log := range logs {
+		ids = append(ids, log.ID)
+	}
+	return ids
+}
+
+func getEventKeys(events []models.Event) []string {
+	keys := make([]string, len(events))
+	for i, event := range events {
+		keys[i] = event.Key
+	}
+	return keys
+}
+
+func groupEventLogs(eventLogs []models.EventLog) map[string][]models.EventLog {
+	groupedLogs := make(map[string][]models.EventLog)
+	for _, log := range eventLogs {
+		if log.ReferenceID == nil || log.ReferenceType == nil {
+			continue
+		}
+		key := generateReferenceKey(*log.ReferenceID, *log.ReferenceType)
+		groupedLogs[key] = append(groupedLogs[key], log)
+	}
+	return groupedLogs
+}
+
+func generateReferenceKey(referenceID, referenceType string) string {
+	return fmt.Sprintf("%s|%s", referenceID, referenceType)
+}
+
+func parseReferenceKey(key string) (string, string) {
+	parts := strings.Split(key, "|")
+	if len(parts) != 2 {
+		return "", ""
+	}
+	return parts[0], parts[1]
 }
 
 func ptr(s string) *string {

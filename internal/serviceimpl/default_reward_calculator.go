@@ -17,22 +17,21 @@ func NewDefaultRewardCalculator() *DefaultRewardCalculator {
 
 func (d *DefaultRewardCalculator) CalculateReward(
 	eventLog models.EventLog,
-	event models.Event,
 	campaign models.Campaign,
 	referee models.Referee,
 	referrer models.Referrer,
 ) (*models.Reward, error) {
 	// Validate RewardType
-	if event.RewardType != "flat_fee" && event.RewardType != "percentage" {
-		return nil, fmt.Errorf("unknown reward type: %s", event.RewardType)
+	if campaign.RewardType != "flat_fee" && campaign.RewardType != "percentage" {
+		return nil, fmt.Errorf("unknown reward type: %s", campaign.RewardType)
 	}
 
 	// Calculate reward amount based on RewardType
 	var rewardAmount decimal.Decimal
-	switch event.RewardType {
+	switch campaign.RewardType {
 	case "flat_fee":
 		// Use event's RewardValue as a flat fee
-		rewardAmount = decimal.NewFromFloat(event.RewardValue)
+		rewardAmount = decimal.NewFromFloat(campaign.RewardValue)
 	case "percentage":
 		// Extract transaction amount from EventLog.Data
 		transactionAmount := extractTransactionAmount(eventLog.Data)
@@ -41,13 +40,11 @@ func (d *DefaultRewardCalculator) CalculateReward(
 		}
 
 		// Calculate percentage-based reward
-		rewardAmount = transactionAmount.Mul(decimal.NewFromFloat(event.RewardValue)).Div(decimal.NewFromInt(100))
+		rewardAmount = transactionAmount.Mul(decimal.NewFromFloat(campaign.RewardValue)).Div(decimal.NewFromInt(100))
 	}
 
 	// Construct the Reward object
 	reward := &models.Reward{
-		EventLogID:    eventLog.ID,
-		EventKey:      event.Key,
 		CampaignID:    campaign.ID,
 		RefereeID:     referee.ID,
 		RefereeType:   referee.ReferenceType,

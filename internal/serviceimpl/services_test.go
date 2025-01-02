@@ -23,8 +23,8 @@ var (
 func TestMain(m *testing.M) {
 	// Initialize shared test database
 	var err error
-	//db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	db, err = gorm.Open(sqlite.Open("/Users/sameer/Documents/test.db"), &gorm.Config{})
+	db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	//db, err = gorm.Open(sqlite.Open("/Users/sameer/Documents/test1.db"), &gorm.Config{})
 	if err != nil {
 		panic("failed to initialize test database")
 	}
@@ -36,6 +36,7 @@ func TestMain(m *testing.M) {
 		&models.CampaignEvent{},
 		&models.Referrer{},
 		&models.Referee{},
+		&models.ReferrerCampaign{},
 		&models.EventLog{},
 		&models.Reward{},
 	)
@@ -50,11 +51,11 @@ func TestMain(m *testing.M) {
 }
 
 func setupEvents(t *testing.T) {
-	event1, err := referralService.Events.CreateEvent("signup-event", "User Signup", "signup", "flat_fee", 50.0, 0, 30)
+	event1, err := referralService.Events.CreateEvent("signup-event", "User Signup", "simple")
 	assert.NoError(t, err)
 	assert.NotNil(t, event1)
 
-	event2, err := referralService.Events.CreateEvent("payment-event", "Payment Made", "payment", "percentage", 10.0, 0, 60)
+	event2, err := referralService.Events.CreateEvent("payment-event", "Payment Made", "payment")
 	assert.NoError(t, err)
 	assert.NotNil(t, event2)
 }
@@ -74,8 +75,10 @@ func setupCampaign(t *testing.T) {
 		"Campaign for new user signups and payments",
 		startDate,
 		endDate,
-		true,   // IsActive
-		events, // Event keys
+		true, // IsActive
+		events,
+		"percentage", 10.0, 0, 60,
+		nil,
 	)
 	assert.NoError(t, err)
 	assert.NotNil(t, campaign)
@@ -105,10 +108,10 @@ func setupReferrer(t *testing.T) {
 	code := utils.GenerateReferralCode()
 	// Create a referrer
 	referrer, err := referralService.Referrers.CreateReferrer(
-		"user-123",   // ReferenceID
-		"user",       // ReferenceType
-		code,         // Unique code
-		&campaign.ID, // CampaignID
+		"user-123",          // ReferenceID
+		"user",              // ReferenceType
+		code,                // Unique code
+		[]uint{campaign.ID}, // CampaignID
 	)
 	assert.NoError(t, err)
 	assert.NotNil(t, referrer)
@@ -117,16 +120,16 @@ func setupReferrer(t *testing.T) {
 	assert.Equal(t, code, referrer.Code)
 	assert.Equal(t, "user-123", referrer.ReferenceID)
 	assert.Equal(t, "user", referrer.ReferenceType)
-	assert.Equal(t, campaign.ID, *referrer.CampaignID)
+	assert.Equal(t, campaign.ID, referrer.Campaigns[0].ID)
 
 	// Fetch and validate the referrer from the database
 	var dbReferrer models.Referrer
-	err = db.Where("id = ?", referrer.ID).First(&dbReferrer).Error
+	err = db.Preload("Campaigns").Where("id = ?", referrer.ID).First(&dbReferrer).Error
 	assert.NoError(t, err)
 	assert.Equal(t, code, dbReferrer.Code)
 	assert.Equal(t, "user-123", dbReferrer.ReferenceID)
 	assert.Equal(t, "user", dbReferrer.ReferenceType)
-	assert.Equal(t, campaign.ID, *dbReferrer.CampaignID)
+	assert.Equal(t, campaign.ID, dbReferrer.Campaigns[0].ID)
 }
 
 func setupReferee(t *testing.T) {
@@ -164,8 +167,74 @@ func TestCreateReferee(t *testing.T) {
 	setupReferrer(t)
 	setupReferee(t)
 
+	_, err := triggerSignupEvent(t)
+	_, err = triggerPaymentEvent(t)
+
+	err = referralService.Worker.ProcessPendingEvents()
+	assert.NoError(t, err)
+
+	// Fetch all rewards
+	var rewards []models.Reward
+	if err := db.Find(&rewards).Error; err != nil {
+		log.Fatalf("failed to fetch rewards: %v", err)
+	}
+
+	// Print each reward
+	for _, reward := range rewards {
+		fmt.Printf("Reward ID: %d\n", reward.ID)
+		fmt.Printf("CampaignID: %d\n", reward.CampaignID)
+		fmt.Printf("RefereeID: %d\n", reward.RefereeID)
+		fmt.Printf("RefereeType: %s\n", reward.RefereeType)
+		fmt.Printf("ReferenceID: %s\n", reward.ReferenceID)
+		fmt.Printf("ReferenceType: %s\n", reward.ReferenceType)
+		fmt.Printf("Amount: %s\n", reward.Amount.String())
+		fmt.Printf("Status: %s\n", reward.Status)
+		if reward.Reason != nil {
+			fmt.Printf("Reason: %s\n", *reward.Reason)
+		} else {
+			fmt.Println("Reason: None")
+		}
+		fmt.Println("--------------------------")
+	}
+
+}
+
+func triggerSignupEvent(t *testing.T) (*models.EventLog, error) {
 	// Create an EventLog for the Referee
 	eventKey := "signup-event"
+	amount := decimal.NewFromFloat(100.50)
+	data := `{"transactionId": "12345"}`
+	user := "user-456"
+	userType := "user"
+	eventLog, err := referralService.EventLogs.CreateEventLog(
+		eventKey,
+		&user,
+		&userType,
+		&amount,
+		&data,
+	)
+	assert.NoError(t, err)
+	assert.NotNil(t, eventLog)
+
+	// Verify the EventLog is created correctly
+	assert.Equal(t, eventKey, eventLog.EventKey)
+	assert.Equal(t, user, *eventLog.ReferenceID)
+	assert.Equal(t, userType, *eventLog.ReferenceType)
+	assert.Equal(t, data, *eventLog.Data)
+	assert.Equal(t, "pending", eventLog.Status)
+
+	// Verify it exists in the database
+	var retrievedEventLog models.EventLog
+	err = db.First(&retrievedEventLog, eventLog.ID).Error
+	assert.NoError(t, err)
+	assert.Equal(t, eventLog.ID, retrievedEventLog.ID)
+
+	return eventLog, err
+}
+
+func triggerPaymentEvent(t *testing.T) (*models.EventLog, error) {
+	// Create an EventLog for the Referee
+	eventKey := "payment-event"
 	amount := decimal.NewFromFloat(100.50)
 	data := `{"transactionId": "12345"}`
 	user := "user-456"
@@ -194,33 +263,5 @@ func TestCreateReferee(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, eventLog.ID, retrievedEventLog.ID)
 
-	err = referralService.Worker.ProcessPendingEvents()
-	assert.NoError(t, err)
-
-	// Fetch all rewards
-	var rewards []models.Reward
-	if err := db.Find(&rewards).Error; err != nil {
-		log.Fatalf("failed to fetch rewards: %v", err)
-	}
-
-	// Print each reward
-	for _, reward := range rewards {
-		fmt.Printf("Reward ID: %d\n", reward.ID)
-		fmt.Printf("EventLogID: %d\n", reward.EventLogID)
-		fmt.Printf("EventKey: %s\n", reward.EventKey)
-		fmt.Printf("CampaignID: %d\n", reward.CampaignID)
-		fmt.Printf("RefereeID: %d\n", reward.RefereeID)
-		fmt.Printf("RefereeType: %s\n", reward.RefereeType)
-		fmt.Printf("ReferenceID: %s\n", reward.ReferenceID)
-		fmt.Printf("ReferenceType: %s\n", reward.ReferenceType)
-		fmt.Printf("Amount: %s\n", reward.Amount.String())
-		fmt.Printf("Status: %s\n", reward.Status)
-		if reward.Reason != nil {
-			fmt.Printf("Reason: %s\n", *reward.Reason)
-		} else {
-			fmt.Println("Reason: None")
-		}
-		fmt.Println("--------------------------")
-	}
-
+	return eventLog, err
 }
