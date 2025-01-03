@@ -142,11 +142,11 @@ func areAllCampaignEventsSatisfied(events []models.Event, logs []models.EventLog
 }
 
 func calculateReward(tx *gorm.DB, campaign models.Campaign, logs []models.EventLog) (float64, error) {
-	if campaign.RewardType == "flat_fee" {
-		return campaign.RewardValue, nil
+	if *campaign.RewardType == "flat_fee" {
+		return *campaign.RewardValue, nil
 	}
 
-	if campaign.RewardType == "percentage" {
+	if *campaign.RewardType == "percentage" {
 		// Sum the total amount from event logs for percentage calculation
 		var totalAmount decimal.Decimal
 		if err := tx.Model(&models.EventLog{}).
@@ -155,10 +155,10 @@ func calculateReward(tx *gorm.DB, campaign models.Campaign, logs []models.EventL
 			Scan(&totalAmount).Error; err != nil {
 			return 0, err
 		}
-		return (totalAmount.InexactFloat64() * campaign.RewardValue) / 100, nil
+		return (totalAmount.InexactFloat64() * *campaign.RewardValue) / 100, nil
 	}
 
-	return 0, fmt.Errorf("unknown reward type: %s", campaign.RewardType)
+	return 0, fmt.Errorf("unknown reward type: %s", *campaign.RewardType)
 }
 
 func getEventLogIDs(logs []models.EventLog) []uint {

@@ -21,7 +21,7 @@ func NewCampaignService(db *gorm.DB) *campaignService {
 }
 
 // CreateCampaign creates a new campaign
-func (s *campaignService) CreateCampaign(name, description string, startDate, endDate time.Time, isActive bool, events []models.Event, rewardType string, rewardValue float64, maxOccurrences uint, validityDays uint, budget *decimal.Decimal) (*models.Campaign, error) {
+func (s *campaignService) CreateCampaign(name, description string, startDate, endDate time.Time, events []models.Event, rewardType *string, rewardValue *float64, maxOccurrences *uint, validityDays *uint, budget *decimal.Decimal) (*models.Campaign, error) {
 	// Validate start and end dates
 	if startDate.After(endDate) {
 		return nil, errors.New("start date cannot be after end date")
@@ -33,7 +33,7 @@ func (s *campaignService) CreateCampaign(name, description string, startDate, en
 	}
 
 	// Validate reward value
-	if rewardValue <= 0 {
+	if rewardValue != nil && *rewardValue <= 0 {
 		return nil, errors.New("reward value must be greater than zero")
 	}
 
@@ -54,7 +54,7 @@ func (s *campaignService) CreateCampaign(name, description string, startDate, en
 		Description:    description,
 		StartDate:      startDate,
 		EndDate:        endDate,
-		IsActive:       isActive,
+		IsActive:       true,
 		RewardType:     rewardType,
 		RewardValue:    rewardValue,
 		MaxOccurrences: maxOccurrences,
@@ -62,26 +62,33 @@ func (s *campaignService) CreateCampaign(name, description string, startDate, en
 		Budget:         budget,
 	}
 
-	// Wrap in a transaction to ensure atomicity
-	if err := s.DB.Transaction(func(tx *gorm.DB) error {
-		// Save the campaign
-		if err := tx.Create(campaign).Error; err != nil {
-			return err
-		}
+	if events != nil && len(events) > 0 {
 
-		// Link the events to the campaign
-		for _, event := range events {
-			if err := tx.Create(&models.CampaignEvent{
-				CampaignID: campaign.ID,
-				EventKey:   event.Key,
-			}).Error; err != nil {
+		// Wrap in a transaction to ensure atomicity
+		if err := s.DB.Transaction(func(tx *gorm.DB) error {
+			// Save the campaign
+			if err := tx.Create(campaign).Error; err != nil {
 				return err
 			}
-		}
 
-		return nil
-	}); err != nil {
-		return nil, err
+			// Link the events to the campaign
+			for _, event := range events {
+				if err := tx.Create(&models.CampaignEvent{
+					CampaignID: campaign.ID,
+					EventKey:   event.Key,
+				}).Error; err != nil {
+					return err
+				}
+			}
+
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := s.DB.Create(campaign).Error; err != nil {
+			return nil, err
+		}
 	}
 
 	// Reload the campaign with associated events
@@ -136,6 +143,12 @@ func (s *campaignService) UpdateCampaign(id uint, updates map[string]interface{}
 	if err := s.DB.Model(&campaign).Updates(updates).Error; err != nil {
 		return nil, err
 	}
+
+	// Reload the campaign with associated events
+	if err := s.DB.Preload("Events").First(&campaign, id).Error; err != nil {
+		return nil, err
+	}
+
 	return &campaign, nil
 }
 

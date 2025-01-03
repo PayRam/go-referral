@@ -9,10 +9,10 @@ import (
 type Campaign struct {
 	gorm.Model
 	Name           string           `gorm:"size:255;not null;uniqueIndex"`
-	RewardType     string           `gorm:"size:50;not null;index"` // e.g., "flat_fee", "percentage"
-	RewardValue    float64          `gorm:"not null"`
-	MaxOccurrences uint             `gorm:"default:0"`           // 0 for unlimited
-	ValidityDays   uint             `gorm:"default:0"`           // 0 for no time limit
+	RewardType     *string          `gorm:"size:50;index"` // e.g., "flat_fee", "percentage"
+	RewardValue    *float64         `gorm:""`
+	MaxOccurrences *uint            `gorm:"default:0"`           // 0 for unlimited
+	ValidityDays   *uint            `gorm:"default:0"`           // 0 for no time limit
 	Budget         *decimal.Decimal `gorm:"type:decimal(38,18)"` // Pointer to handle nil as unlimited
 	Description    string           `gorm:"type:text"`
 	StartDate      time.Time        `gorm:"not null;index"`

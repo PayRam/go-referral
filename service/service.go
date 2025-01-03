@@ -16,7 +16,7 @@ type EventService interface {
 
 // CampaignService handles operations related to campaigns
 type CampaignService interface {
-	CreateCampaign(name, description string, startDate, endDate time.Time, isActive bool, events []models.Event, rewardType string, rewardValue float64, maxOccurrences uint, validityDays uint, budget *decimal.Decimal) (*models.Campaign, error)
+	CreateCampaign(name, description string, startDate, endDate time.Time, events []models.Event, rewardType *string, rewardValue *float64, maxOccurrences *uint, validityDays *uint, budget *decimal.Decimal) (*models.Campaign, error)
 	GetCampaigns(conditions []db.QueryCondition, offset, limit int, sort *string) ([]models.Campaign, error)
 	UpdateCampaign(id uint, updates map[string]interface{}) (*models.Campaign, error)
 	UpdateCampaignEvents(campaignID uint, events []models.Event) error

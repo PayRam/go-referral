@@ -23,8 +23,8 @@ var (
 func TestMain(m *testing.M) {
 	// Initialize shared test database
 	var err error
-	db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	//db, err = gorm.Open(sqlite.Open("/Users/sameer/Documents/test1.db"), &gorm.Config{})
+	//db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err = gorm.Open(sqlite.Open("/Users/sameer/Documents/test1.db"), &gorm.Config{})
 	if err != nil {
 		panic("failed to initialize test database")
 	}
@@ -75,17 +75,30 @@ func setupCampaign(t *testing.T) {
 		"Campaign for new user signups and payments",
 		startDate,
 		endDate,
-		true, // IsActive
-		events,
-		"percentage", 10.0, 0, 60,
+		nil,
+		nil, nil, nil, nil,
 		nil,
 	)
 	assert.NoError(t, err)
 	assert.NotNil(t, campaign)
-
-	// Verify that the campaign is created correctly
 	assert.Equal(t, "New User Campaign", campaign.Name)
-	assert.Equal(t, 2, len(campaign.Events))
+
+	campaign, err = referralService.Campaigns.UpdateCampaign(
+		campaign.ID,
+		map[string]interface{}{
+			"reward_type":     "percentage",
+			"reward_value":    10.0,
+			"max_occurrences": 0,
+			"validity_days":   60,
+		})
+	assert.NoError(t, err)
+	assert.NotNil(t, campaign)
+	assert.Equal(t, "percentage", *campaign.RewardType)
+
+	err = referralService.Campaigns.UpdateCampaignEvents(
+		campaign.ID,
+		events,
+	)
 
 	// Verify associations
 	var campaignEvents []models.CampaignEvent
