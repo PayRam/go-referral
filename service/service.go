@@ -11,7 +11,7 @@ import (
 // EventService handles operations related to events
 type EventService interface {
 	CreateEvent(key, name, eventType string) (*models.Event, error)
-	UpdateEvent(key string, updates map[string]interface{}) (*models.Event, error)
+	UpdateEvent(key string, req request.UpdateEventRequest) (*models.Event, error)
 	GetAll() ([]models.Event, error)
 }
 

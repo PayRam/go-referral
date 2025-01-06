@@ -2,6 +2,11 @@ package request
 
 import "time"
 
+type UpdateEventRequest struct {
+	Name      *string `json:"name"`
+	EventType *string `json:"event_type"` // e.g., "simple", "payment"
+}
+
 type UpdateCampaignRequest struct {
 	Name           *string    `json:"name"`
 	RewardType     *string    `json:"reward_type"` // e.g., "flat_fee", "percentage"

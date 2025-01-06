@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/PayRam/go-referral/models"
+	"github.com/PayRam/go-referral/request"
 	"gorm.io/gorm"
 )
 
@@ -42,8 +43,10 @@ func (s *eventService) CreateEvent(key, name, eventType string) (*models.Event, 
 }
 
 // UpdateEvent updates an existing event
-func (s *eventService) UpdateEvent(key string, updates map[string]interface{}) (*models.Event, error) {
+func (s *eventService) UpdateEvent(key string, req request.UpdateEventRequest) (*models.Event, error) {
 	var event models.Event
+
+	// Fetch the event by key
 	if err := s.DB.First(&event, "key = ?", key).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("event not found with key: %s", key)
@@ -51,10 +54,22 @@ func (s *eventService) UpdateEvent(key string, updates map[string]interface{}) (
 		return nil, err
 	}
 
-	// Apply updates
-	if err := s.DB.Model(&event).Updates(updates).Error; err != nil {
-		return nil, err
+	// Prepare updates dynamically based on non-nil fields in the request
+	updates := map[string]interface{}{}
+	if req.Name != nil {
+		updates["name"] = *req.Name
 	}
+	if req.EventType != nil {
+		updates["event_type"] = *req.EventType
+	}
+
+	// Apply updates
+	if len(updates) > 0 {
+		if err := s.DB.Model(&event).Updates(updates).Error; err != nil {
+			return nil, fmt.Errorf("failed to update event: %w", err)
+		}
+	}
+
 	return &event, nil
 }
 

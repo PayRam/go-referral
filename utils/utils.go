@@ -10,3 +10,7 @@ func GenerateReferralCode() string {
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
 }
+
+func StringPtr(s string) *string {
+	return &s
+}

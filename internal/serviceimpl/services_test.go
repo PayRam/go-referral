@@ -24,8 +24,8 @@ var (
 func TestMain(m *testing.M) {
 	// Initialize shared test database
 	var err error
-	//db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	db, err = gorm.Open(sqlite.Open("/Users/sameer/Documents/test1.db"), &gorm.Config{})
+	db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	//db, err = gorm.Open(sqlite.Open("/Users/sameer/Documents/test1.db"), &gorm.Config{})
 	if err != nil {
 		panic("failed to initialize test database")
 	}
@@ -40,10 +40,19 @@ func setupEvents(t *testing.T) {
 	event1, err := referralService.Events.CreateEvent("signup-event", "User Signup", "simple")
 	assert.NoError(t, err)
 	assert.NotNil(t, event1)
+	assert.Equal(t, "User Signup", event1.Name)
 
 	event2, err := referralService.Events.CreateEvent("payment-event", "Payment Made", "payment")
 	assert.NoError(t, err)
 	assert.NotNil(t, event2)
+	assert.Equal(t, "Payment Made", event2.Name)
+
+	event3, err := referralService.Events.UpdateEvent("payment-event", request.UpdateEventRequest{
+		Name: utils.StringPtr("Payment Done"),
+	})
+	assert.NoError(t, err)
+	assert.NotNil(t, event3)
+	assert.Equal(t, "Payment Done", event3.Name)
 }
 
 func setupCampaign(t *testing.T) {
