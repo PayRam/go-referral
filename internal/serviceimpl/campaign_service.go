@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/PayRam/go-referral/internal/db"
 	"github.com/PayRam/go-referral/models"
+	"github.com/PayRam/go-referral/request"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"time"
@@ -133,20 +134,63 @@ func (s *campaignService) GetCampaigns(conditions []db.QueryCondition, offset, l
 }
 
 // UpdateCampaign updates an existing campaign
-func (s *campaignService) UpdateCampaign(id uint, updates map[string]interface{}) (*models.Campaign, error) {
+func (s *campaignService) UpdateCampaign(id uint, req request.UpdateCampaignRequest) (*models.Campaign, error) {
 	var campaign models.Campaign
+
+	// Fetch the campaign
 	if err := s.DB.First(&campaign, id).Error; err != nil {
-		return nil, err
+		return nil, fmt.Errorf("campaign not found: %w", err)
 	}
 
-	// Apply updates
+	// Prepare the updates
+	updates := map[string]interface{}{}
+
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.RewardType != nil {
+		updates["reward_type"] = *req.RewardType
+	}
+	if req.RewardValue != nil {
+		updates["reward_value"] = *req.RewardValue
+	}
+	if req.MaxOccurrences != nil {
+		updates["max_occurrences"] = *req.MaxOccurrences
+	}
+	if req.ValidityDays != nil {
+		updates["validity_days"] = *req.ValidityDays
+	}
+	if req.Budget != nil {
+		updates["budget"] = *req.Budget
+	}
+	if req.Description != nil {
+		updates["description"] = *req.Description
+	}
+	if req.StartDate != nil {
+		updates["start_date"] = *req.StartDate
+	}
+	if req.EndDate != nil {
+		updates["end_date"] = *req.EndDate
+	}
+	if req.IsActive != nil {
+		updates["is_active"] = *req.IsActive
+	}
+
+	// Validate the date range
+	if req.StartDate != nil && req.EndDate != nil {
+		if req.StartDate.After(*req.EndDate) {
+			return nil, fmt.Errorf("start date cannot be after end date")
+		}
+	}
+
+	// Apply the updates
 	if err := s.DB.Model(&campaign).Updates(updates).Error; err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update campaign: %w", err)
 	}
 
 	// Reload the campaign with associated events
 	if err := s.DB.Preload("Events").First(&campaign, id).Error; err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to reload updated campaign: %w", err)
 	}
 
 	return &campaign, nil

@@ -3,6 +3,7 @@ package service
 import (
 	"github.com/PayRam/go-referral/internal/db"
 	"github.com/PayRam/go-referral/models"
+	"github.com/PayRam/go-referral/request"
 	"github.com/shopspring/decimal"
 	"time"
 )
@@ -18,7 +19,7 @@ type EventService interface {
 type CampaignService interface {
 	CreateCampaign(name, description string, startDate, endDate time.Time, events []models.Event, rewardType *string, rewardValue *float64, maxOccurrences *uint, validityDays *uint, budget *decimal.Decimal) (*models.Campaign, error)
 	GetCampaigns(conditions []db.QueryCondition, offset, limit int, sort *string) ([]models.Campaign, error)
-	UpdateCampaign(id uint, updates map[string]interface{}) (*models.Campaign, error)
+	UpdateCampaign(id uint, req request.UpdateCampaignRequest) (*models.Campaign, error)
 	UpdateCampaignEvents(campaignID uint, events []models.Event) error
 	SetDefaultCampaign(campaignID uint) error
 }

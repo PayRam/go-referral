@@ -5,6 +5,7 @@ import (
 	go_referral "github.com/PayRam/go-referral"
 	db2 "github.com/PayRam/go-referral/internal/db"
 	"github.com/PayRam/go-referral/models"
+	"github.com/PayRam/go-referral/request"
 	"github.com/PayRam/go-referral/utils"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
@@ -23,8 +24,8 @@ var (
 func TestMain(m *testing.M) {
 	// Initialize shared test database
 	var err error
-	db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	//db, err = gorm.Open(sqlite.Open("/Users/sameer/Documents/test1.db"), &gorm.Config{})
+	//db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err = gorm.Open(sqlite.Open("/Users/sameer/Documents/test1.db"), &gorm.Config{})
 	if err != nil {
 		panic("failed to initialize test database")
 	}
@@ -68,14 +69,22 @@ func setupCampaign(t *testing.T) {
 	assert.NotNil(t, campaign)
 	assert.Equal(t, "New User Campaign", campaign.Name)
 
+	var rewardType = "percentage"
+	var rewardValue = 10.0
+	var maxOccurrences = uint(0)
+	var validityDays = uint(60)
+
+	var updateCampaignRequest = request.UpdateCampaignRequest{
+		RewardType:     &rewardType,
+		RewardValue:    &rewardValue,
+		MaxOccurrences: &maxOccurrences,
+		ValidityDays:   &validityDays,
+	}
+
 	campaign, err = referralService.Campaigns.UpdateCampaign(
 		campaign.ID,
-		map[string]interface{}{
-			"reward_type":     "percentage",
-			"reward_value":    10.0,
-			"max_occurrences": 0,
-			"validity_days":   60,
-		})
+		updateCampaignRequest,
+	)
 	assert.NoError(t, err)
 	assert.NotNil(t, campaign)
 	assert.Equal(t, "percentage", *campaign.RewardType)
