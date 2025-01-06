@@ -9,9 +9,27 @@ import (
 var Initialise = &gormigrate.Migration{
 	ID: "202412191749-gr-473842",
 	Migrate: func(db *gorm.DB) error {
-		return db.AutoMigrate(&models.Event{}, &models.Campaign{}, &models.CampaignEvent{}, &models.Referrer{}, &models.Referee{})
+		return db.AutoMigrate(
+			&models.Event{},
+			&models.Campaign{},
+			&models.CampaignEvent{},
+			&models.Referrer{},
+			&models.Referee{},
+			&models.ReferrerCampaign{},
+			&models.EventLog{},
+			&models.Reward{},
+		)
 	},
 	Rollback: func(db *gorm.DB) error {
-		return db.Migrator().DropTable(&models.Event{}, &models.Campaign{}, &models.CampaignEvent{}, &models.Referrer{}, &models.Referee{})
+		return db.Migrator().DropTable(
+			&models.Event{},
+			&models.Campaign{},
+			&models.CampaignEvent{},
+			&models.Referrer{},
+			&models.Referee{},
+			&models.ReferrerCampaign{},
+			&models.EventLog{},
+			&models.Reward{},
+		)
 	},
 }

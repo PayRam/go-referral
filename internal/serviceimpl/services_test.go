@@ -23,25 +23,10 @@ var (
 func TestMain(m *testing.M) {
 	// Initialize shared test database
 	var err error
-	//db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	db, err = gorm.Open(sqlite.Open("/Users/sameer/Documents/test1.db"), &gorm.Config{})
+	db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	//db, err = gorm.Open(sqlite.Open("/Users/sameer/Documents/test1.db"), &gorm.Config{})
 	if err != nil {
 		panic("failed to initialize test database")
-	}
-
-	// Run migrations
-	err = db.AutoMigrate(
-		&models.Event{},
-		&models.Campaign{},
-		&models.CampaignEvent{},
-		&models.Referrer{},
-		&models.Referee{},
-		&models.ReferrerCampaign{},
-		&models.EventLog{},
-		&models.Reward{},
-	)
-	if err != nil {
-		panic("failed to migrate test database")
 	}
 
 	referralService = go_referral.NewReferralService(db)
