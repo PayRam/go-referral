@@ -196,7 +196,7 @@ func (s *campaignService) UpdateCampaign(id uint, req request.UpdateCampaignRequ
 	return &campaign, nil
 }
 
-func (s *campaignService) UpdateCampaignEvents(campaignID uint, events []models.Event) error {
+func (s *campaignService) UpdateCampaignEvents(campaignID uint, events []models.Event) (*models.Campaign, error) {
 	// Validate at most one event with EventType = "payment"
 	paymentCount := 0
 	for _, event := range events {
@@ -204,12 +204,13 @@ func (s *campaignService) UpdateCampaignEvents(campaignID uint, events []models.
 			paymentCount++
 		}
 		if paymentCount > 1 {
-			return errors.New("only one event with event type 'payment' is allowed")
+			return nil, errors.New("only one event with event type 'payment' is allowed")
 		}
 	}
 
 	// Wrap in a transaction to ensure atomicity
-	return s.DB.Transaction(func(tx *gorm.DB) error {
+	var campaign models.Campaign
+	if err := s.DB.Transaction(func(tx *gorm.DB) error {
 		// Remove existing event associations
 		if err := tx.Unscoped().Where("campaign_id = ?", campaignID).Delete(&models.CampaignEvent{}).Error; err != nil {
 			return err
@@ -225,8 +226,17 @@ func (s *campaignService) UpdateCampaignEvents(campaignID uint, events []models.
 			}
 		}
 
+		// Reload the campaign with associated events
+		if err := tx.Preload("Events").First(&campaign, campaignID).Error; err != nil {
+			return fmt.Errorf("failed to reload updated campaign: %w", err)
+		}
+
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
+
+	return &campaign, nil
 }
 
 func (s *campaignService) SetDefaultCampaign(campaignID uint) error {

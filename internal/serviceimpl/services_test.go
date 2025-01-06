@@ -98,10 +98,12 @@ func setupCampaign(t *testing.T) {
 	assert.NotNil(t, campaign)
 	assert.Equal(t, "percentage", *campaign.RewardType)
 
-	err = referralService.Campaigns.UpdateCampaignEvents(
+	campaign, err = referralService.Campaigns.UpdateCampaignEvents(
 		campaign.ID,
 		events,
 	)
+	assert.NoError(t, err)
+	assert.NotNil(t, campaign)
 
 	// Verify associations
 	var campaignEvents []models.CampaignEvent
