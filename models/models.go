@@ -6,8 +6,15 @@ import (
 	"time"
 )
 
+type BaseModel struct {
+	ID        uint           `gorm:"primaryKey" json:"id" seeder:"no-update"`
+	CreatedAt time.Time      `gorm:"index" json:"createdAt" seeder:"no-update"`
+	UpdatedAt time.Time      `gorm:"index" json:"updatedAt" seeder:"no-update"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-" seeder:"no-update"`
+}
+
 type Campaign struct {
-	gorm.Model
+	BaseModel
 	Name           string           `gorm:"size:255;not null;uniqueIndex"`
 	RewardType     *string          `gorm:"size:50;index"` // e.g., "flat_fee", "percentage"
 	RewardValue    *float64         `gorm:""`
@@ -28,12 +35,12 @@ func (Campaign) TableName() string {
 
 // Event represents an action within a campaign that can trigger a reward
 type Event struct {
-	Key       string     `gorm:"primaryKey;type:varchar(50);not null"` // Custom string primary key (e.g., UUID)
-	Name      string     `gorm:"size:255;not null"`                    // Event name (not unique anymore)
-	EventType string     `gorm:"size:100;not null;index"`              // e.g., "simple", "payment"
-	CreatedAt time.Time  `gorm:"autoCreateTime"`                       // Auto-manage created time
-	UpdatedAt time.Time  `gorm:"autoUpdateTime"`                       // Auto-manage updated time
-	DeletedAt *time.Time `gorm:"index"`                                // Soft delete support
+	Key       string     `gorm:"primaryKey;type:varchar(50);not null"  seeder:"key,no-update"` // Custom string primary key (e.g., UUID)
+	Name      string     `gorm:"size:255;not null"`                                            // Event name (not unique anymore)
+	EventType string     `gorm:"size:100;not null;index"`                                      // e.g., "simple", "payment"
+	CreatedAt time.Time  `gorm:"autoCreateTime"`                                               // Auto-manage created time
+	UpdatedAt time.Time  `gorm:"autoUpdateTime"`                                               // Auto-manage updated time
+	DeletedAt *time.Time `gorm:"index"`                                                        // Soft delete support
 }
 
 func (Event) TableName() string {
@@ -52,7 +59,7 @@ func (CampaignEvent) TableName() string {
 }
 
 type Referrer struct {
-	gorm.Model
+	BaseModel
 	Code          string     `gorm:"size:50;uniqueIndex;not null"`                         // Unique referral code
 	ReferenceID   string     `gorm:"not null;index:idx_referrer_reference_id_type,unique"` // Composite index
 	ReferenceType string     `gorm:"size:100;not null;index:idx_referrer_reference_id_type,unique"`
@@ -75,7 +82,7 @@ func (ReferrerCampaign) TableName() string {
 }
 
 type Referee struct {
-	gorm.Model
+	BaseModel
 	ReferrerID    uint      `gorm:"not null"`                                            // ID of the Referrer (Foreign Key to Referrer table)
 	ReferenceID   string    `gorm:"not null;index:idx_referee_reference_id_type,unique"` // Composite index
 	ReferenceType string    `gorm:"size:100;not null;index:idx_referee_reference_id_type,unique"`
@@ -87,7 +94,7 @@ func (Referee) TableName() string {
 }
 
 type EventLog struct {
-	gorm.Model
+	BaseModel
 	EventKey      string           `gorm:"not null;index" foreignKey:"Key" references:"Event"`
 	ReferenceID   *string          `gorm:"index"` // Composite index
 	ReferenceType *string          `gorm:"index"`
@@ -103,7 +110,7 @@ func (EventLog) TableName() string {
 }
 
 type Reward struct {
-	gorm.Model
+	BaseModel
 	CampaignID    uint            `gorm:"not null;index"` // Foreign key to Campaign
 	RefereeID     uint            `gorm:"not null;index"` // Foreign key to Referee
 	RefereeType   string          `gorm:"size:100;not null;index"`
