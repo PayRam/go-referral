@@ -40,7 +40,7 @@ type Event struct {
 	EventType string     `gorm:"size:100;not null;index"`                                      // e.g., "simple", "payment"
 	CreatedAt time.Time  `gorm:"autoCreateTime" seeder:"no-update"`                            // Auto-manage created time
 	UpdatedAt time.Time  `gorm:"autoUpdateTime" seeder:"no-update"`                            // Auto-manage updated time
-	DeletedAt *time.Time `gorm:"index" seeder:"no-update"`                                     // Soft delete support
+	DeletedAt *time.Time `gorm:"index" json:"-"  seeder:"no-update"`                           // Soft delete support
 }
 
 func (Event) TableName() string {
