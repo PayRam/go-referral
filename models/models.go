@@ -38,9 +38,9 @@ type Event struct {
 	Key       string     `gorm:"primaryKey;type:varchar(50);not null"  seeder:"key,no-update"` // Custom string primary key (e.g., UUID)
 	Name      string     `gorm:"size:255;not null"`                                            // Event name (not unique anymore)
 	EventType string     `gorm:"size:100;not null;index"`                                      // e.g., "simple", "payment"
-	CreatedAt time.Time  `gorm:"autoCreateTime"`                                               // Auto-manage created time
-	UpdatedAt time.Time  `gorm:"autoUpdateTime"`                                               // Auto-manage updated time
-	DeletedAt *time.Time `gorm:"index"`                                                        // Soft delete support
+	CreatedAt time.Time  `gorm:"autoCreateTime" seeder:"no-update"`                            // Auto-manage created time
+	UpdatedAt time.Time  `gorm:"autoUpdateTime" seeder:"no-update"`                            // Auto-manage updated time
+	DeletedAt *time.Time `gorm:"index" seeder:"no-update"`                                     // Soft delete support
 }
 
 func (Event) TableName() string {
