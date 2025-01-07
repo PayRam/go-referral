@@ -13,6 +13,9 @@ type EventService interface {
 	CreateEvent(key, name, eventType string) (*models.Event, error)
 	UpdateEvent(key string, req request.UpdateEventRequest) (*models.Event, error)
 	GetAll() ([]models.Event, error)
+	GetByKey(key string) (*models.Event, error)
+	GetByKeys(keys []string) ([]models.Event, error)
+	SearchByName(name string) ([]models.Event, error)
 }
 
 // CampaignService handles operations related to campaigns
@@ -22,6 +25,8 @@ type CampaignService interface {
 	UpdateCampaign(id uint, req request.UpdateCampaignRequest) (*models.Campaign, error)
 	UpdateCampaignEvents(campaignID uint, events []models.Event) (*models.Campaign, error)
 	SetDefaultCampaign(campaignID uint) error
+	GetAll() ([]models.Campaign, error)
+	SearchByName(name string) ([]models.Campaign, error)
 }
 
 // ReferrerService handles operations related to referral codes

@@ -83,3 +83,56 @@ func (s *eventService) GetAll() ([]models.Event, error) {
 
 	return events, nil
 }
+
+func (s *eventService) GetByKey(key string) (*models.Event, error) {
+	var event models.Event
+
+	// Fetch the event by key
+	if err := s.DB.First(&event, "key = ?", key).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("event not found with key: %s", key)
+		}
+		return nil, err
+	}
+
+	return &event, nil
+}
+
+func (s *eventService) GetByKeys(keys []string) ([]models.Event, error) {
+	var events []models.Event
+
+	// Fetch the events by keys
+	if err := s.DB.Where("key IN ?", keys).Find(&events).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch events for keys %v: %w", keys, err)
+	}
+
+	// Check if all keys are found
+	if len(events) != len(keys) {
+		foundKeys := make(map[string]bool)
+		for _, event := range events {
+			foundKeys[event.Key] = true
+		}
+
+		missingKeys := []string{}
+		for _, key := range keys {
+			if !foundKeys[key] {
+				missingKeys = append(missingKeys, key)
+			}
+		}
+
+		return nil, fmt.Errorf("some keys were not found: %v", missingKeys)
+	}
+
+	return events, nil
+}
+
+func (s *eventService) SearchByName(name string) ([]models.Event, error) {
+	var events []models.Event
+
+	// Fetch events by name using a case-insensitive search with NOCASE
+	if err := s.DB.Where("name LIKE ? COLLATE NOCASE", "%"+name+"%").Find(&events).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch events for name: %s, error: %w", name, err)
+	}
+
+	return events, nil
+}

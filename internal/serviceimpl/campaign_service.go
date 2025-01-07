@@ -258,3 +258,25 @@ func (s *campaignService) SetDefaultCampaign(campaignID uint) error {
 		return nil
 	})
 }
+
+func (s *campaignService) GetAll() ([]models.Campaign, error) {
+	var campaigns []models.Campaign
+
+	// Fetch all campaigns
+	if err := s.DB.Find(&campaigns).Error; err != nil {
+		return nil, err
+	}
+
+	return campaigns, nil
+}
+
+func (s *campaignService) SearchByName(name string) ([]models.Campaign, error) {
+	var campaigns []models.Campaign
+
+	// Fetch events by name using a case-insensitive search with NOCASE
+	if err := s.DB.Where("name LIKE ? COLLATE NOCASE", "%"+name+"%").Find(&campaigns).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch campaigns by name: %w", err)
+	}
+
+	return campaigns, nil
+}

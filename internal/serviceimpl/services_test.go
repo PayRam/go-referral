@@ -53,6 +53,14 @@ func setupEvents(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, event3)
 	assert.Equal(t, "Payment Done", event3.Name)
+
+	event4, err := referralService.Events.SearchByName("Payment")
+	if err != nil {
+		return
+	}
+	assert.NoError(t, err)
+	assert.NotNil(t, event4[0])
+	assert.Equal(t, "Payment Done", event4[0].Name)
 }
 
 func setupCampaign(t *testing.T) {
@@ -110,6 +118,14 @@ func setupCampaign(t *testing.T) {
 	err = db.Where("campaign_id = ?", campaign.ID).Find(&campaignEvents).Error
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(campaignEvents))
+
+	campaigns, err := referralService.Campaigns.SearchByName("User Campaign")
+	if err != nil {
+		return
+	}
+	assert.NoError(t, err)
+	assert.NotNil(t, campaigns[0])
+	assert.Equal(t, "New User Campaign", campaigns[0].Name)
 }
 
 func setupReferrer(t *testing.T) {
