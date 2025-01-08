@@ -38,7 +38,7 @@ type ReferrerService interface {
 
 // RefereeService handles operations related to referral codes
 type RefereeService interface {
-	CreateRefereeByCode(code, referenceID, referenceType string) (*models.Referee, error)
+	CreateReferee(code, referenceID, referenceType string) (*models.Referee, error)
 	GetRefereeByReference(referenceID, referenceType string) (*models.Referee, error)
 	GetRefereesByReferrer(referrerID uint) ([]models.Referee, error)
 }

@@ -172,7 +172,7 @@ func setupReferee(t *testing.T) {
 		return
 	}
 	// Create a Referee using the Referrer's code
-	referee, err := referralService.Referees.CreateRefereeByCode(
+	referee, err := referralService.Referees.CreateReferee(
 		referrer.Code, // Referrer code
 		"user-456",    // ReferenceID
 		"user",        // ReferenceType

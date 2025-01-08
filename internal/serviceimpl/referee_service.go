@@ -19,7 +19,7 @@ func NewRefereeService(db *gorm.DB) *refereeService {
 }
 
 // CreateRefereeByCode creates a mapping between a referee and a referrer
-func (s *refereeService) CreateRefereeByCode(code, referenceID, referenceType string) (*models.Referee, error) {
+func (s *refereeService) CreateReferee(code, referenceID, referenceType string) (*models.Referee, error) {
 	// Validate if the Referrer exists by referral code
 	var referrer models.Referrer
 	if err := s.DB.Where("code = ?", code).First(&referrer).Error; err != nil {
