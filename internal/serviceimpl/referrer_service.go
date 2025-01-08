@@ -61,15 +61,16 @@ func (s *referrerService) CreateReferrer(referenceID, referenceType, code string
 
 func (s *referrerService) GetReferrerByReference(referenceID, referenceType string) (*models.Referrer, error) {
 	var referral models.Referrer
-	if err := s.DB.Where("reference_id = ? AND reference_type = ?", referenceID, referenceType).First(&referral).Error; err != nil {
+	if err := s.DB.Preload("Campaigns").Where("reference_id = ? AND reference_type = ?", referenceID, referenceType).First(&referral).Error; err != nil {
 		return nil, err
 	}
 	return &referral, nil
 }
 
-func (s *referrerService) UpdateCampaigns(referenceID, referenceType string, campaignIDs []uint) error {
+func (s *referrerService) UpdateCampaigns(referenceID, referenceType string, campaignIDs []uint) (*models.Referrer, error) {
 	// Use a database transaction to ensure atomicity
-	return s.DB.Transaction(func(tx *gorm.DB) error {
+	var updatedReferrer *models.Referrer
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		var referrer models.Referrer
 
 		// Fetch the referrer for the given reference
@@ -97,6 +98,18 @@ func (s *referrerService) UpdateCampaigns(referenceID, referenceType string, cam
 			}
 		}
 
+		// Preload campaigns for the updated referrer
+		if err := tx.Preload("Campaigns").First(&referrer, referrer.ID).Error; err != nil {
+			return fmt.Errorf("failed to preload campaigns for referrer: %w", err)
+		}
+
+		updatedReferrer = &referrer
 		return nil
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedReferrer, nil
 }

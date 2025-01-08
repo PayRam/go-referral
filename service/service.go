@@ -33,7 +33,7 @@ type CampaignService interface {
 type ReferrerService interface {
 	CreateReferrer(referenceID, referenceType, code string, campaignIDs []uint) (*models.Referrer, error)
 	GetReferrerByReference(referenceID, referenceType string) (*models.Referrer, error)
-	UpdateCampaigns(referenceID, referenceType string, campaignIDs []uint) error
+	UpdateCampaigns(referenceID, referenceType string, campaignIDs []uint) (*models.Referrer, error)
 }
 
 // RefereeService handles operations related to referral codes
