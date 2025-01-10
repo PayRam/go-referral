@@ -60,6 +60,9 @@ func (s *eventService) UpdateEvent(key string, req request.UpdateEventRequest) (
 	if req.Name != nil {
 		updates["name"] = *req.Name
 	}
+	if req.Description != nil {
+		updates["description"] = *req.Description
+	}
 	if req.EventType != nil {
 		updates["event_type"] = *req.EventType
 	}

@@ -3,8 +3,9 @@ package request
 import "time"
 
 type UpdateEventRequest struct {
-	Name      *string `json:"name"`
-	EventType *string `json:"eventType"` // e.g., "simple", "payment"
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	EventType   *string `json:"eventType"` // e.g., "simple", "payment"
 }
 
 type UpdateCampaignRequest struct {
