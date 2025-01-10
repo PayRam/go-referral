@@ -155,6 +155,12 @@ func (s *campaignService) UpdateCampaign(id uint, req request.UpdateCampaignRequ
 	if req.RewardValue != nil {
 		updates["reward_value"] = *req.RewardValue
 	}
+	if req.InviteeRewardValue != nil {
+		updates["invitee_reward_type"] = *req.InviteeRewardType
+	}
+	if req.InviteeRewardValue != nil {
+		updates["invitee_reward_value"] = *req.InviteeRewardValue
+	}
 	if req.MaxOccurrences != nil {
 		updates["max_occurrences"] = *req.MaxOccurrences
 	}
@@ -280,4 +286,72 @@ func (s *campaignService) SearchByName(name string) ([]models.Campaign, error) {
 	}
 
 	return campaigns, nil
+}
+
+// PauseCampaign updates an existing campaign to set it as inactive
+func (s *campaignService) PauseCampaign(campaignID uint) (*models.Campaign, error) {
+	var campaign models.Campaign
+
+	// Use a transaction to ensure atomicity
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		// Fetch the campaign
+		if err := tx.First(&campaign, campaignID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("campaign not found: %w", err)
+			}
+			return err
+		}
+
+		// Check if the campaign is already paused
+		if !campaign.IsActive {
+			return fmt.Errorf("campaign is already paused")
+		}
+
+		// Update the campaign status
+		if err := tx.Model(&campaign).Update("is_active", false).Error; err != nil {
+			return fmt.Errorf("failed to update campaign: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Reload the campaign with associated events
+	if err := s.DB.Preload("Events").First(&campaign, campaignID).Error; err != nil {
+		return nil, fmt.Errorf("failed to reload updated campaign: %w", err)
+	}
+
+	return &campaign, nil
+}
+
+// DeleteCampaign performs a soft delete on an existing campaign
+func (s *campaignService) DeleteCampaign(campaignID uint) (bool, error) {
+	var campaign models.Campaign
+
+	// Use a transaction to ensure atomicity
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		// Fetch the campaign
+		if err := tx.First(&campaign, campaignID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("campaign not found: %w", err)
+			}
+			return err
+		}
+
+		// Perform the soft delete
+		if err := tx.Delete(&campaign).Error; err != nil {
+			return fmt.Errorf("failed to soft delete campaign: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }

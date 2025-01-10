@@ -73,7 +73,7 @@ func setupCampaign(t *testing.T) {
 	// Create a campaign using event keys
 	startDate := time.Now()
 	endDate := startDate.AddDate(0, 1, 0) // One month from start date
-
+	budget := decimal.NewFromFloat(1000.00)
 	campaign, err := referralService.Campaigns.CreateCampaign(
 		"New User Campaign",
 		"Campaign for new user signups and payments",
@@ -81,7 +81,7 @@ func setupCampaign(t *testing.T) {
 		endDate,
 		nil,
 		nil, nil, nil, nil,
-		nil,
+		&budget,
 	)
 	assert.NoError(t, err)
 	assert.NotNil(t, campaign)
@@ -89,14 +89,18 @@ func setupCampaign(t *testing.T) {
 
 	var rewardType = "percentage"
 	var rewardValue = 10.0
+	var inviteeRewardType = "flat_fee"
+	var inviteeRewardValue = 100.0
 	var maxOccurrences = uint(0)
 	var validityDays = uint(60)
 
 	var updateCampaignRequest = request.UpdateCampaignRequest{
-		RewardType:     &rewardType,
-		RewardValue:    &rewardValue,
-		MaxOccurrences: &maxOccurrences,
-		ValidityDays:   &validityDays,
+		RewardType:         &rewardType,
+		RewardValue:        &rewardValue,
+		InviteeRewardType:  &inviteeRewardType,
+		InviteeRewardValue: &inviteeRewardValue,
+		MaxOccurrences:     &maxOccurrences,
+		ValidityDays:       &validityDays,
 	}
 
 	campaign, err = referralService.Campaigns.UpdateCampaign(

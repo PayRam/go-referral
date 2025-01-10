@@ -27,6 +27,8 @@ type CampaignService interface {
 	SetDefaultCampaign(campaignID uint) error
 	GetAll() ([]models.Campaign, error)
 	SearchByName(name string) ([]models.Campaign, error)
+	PauseCampaign(campaignID uint) (*models.Campaign, error)
+	DeleteCampaign(campaignID uint) (bool, error)
 }
 
 // ReferrerService handles operations related to referral codes

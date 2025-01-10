@@ -8,14 +8,16 @@ type UpdateEventRequest struct {
 }
 
 type UpdateCampaignRequest struct {
-	Name           *string    `json:"name"`
-	RewardType     *string    `json:"rewardType"` // e.g., "flat_fee", "percentage"
-	RewardValue    *float64   `json:"rewardValue"`
-	MaxOccurrences *uint      `json:"maxOccurrences"`
-	ValidityDays   *uint      `json:"validityDays"`
-	Budget         *float64   `json:"budget"` // Optional budget
-	Description    *string    `json:"description"`
-	StartDate      *time.Time `json:"startDate"`
-	EndDate        *time.Time `json:"endDate"`
-	IsActive       *bool      `json:"isActive"`
+	Name               *string    `json:"name"`
+	RewardType         *string    `json:"rewardType"` // e.g., "flat_fee", "percentage"
+	RewardValue        *float64   `json:"rewardValue"`
+	MaxOccurrences     *uint      `json:"maxOccurrences"`
+	ValidityDays       *uint      `json:"validityDays"`
+	InviteeRewardType  *string    `json:"inviteeRewardType"` // e.g., "flat_fee", "percentage"
+	InviteeRewardValue *float64   `json:"inviteeRewardValue"`
+	Budget             *float64   `json:"budget"` // Optional budget
+	Description        *string    `json:"description"`
+	StartDate          *time.Time `json:"startDate"`
+	EndDate            *time.Time `json:"endDate"`
+	IsActive           *bool      `json:"isActive"`
 }

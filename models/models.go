@@ -15,18 +15,20 @@ type BaseModel struct {
 
 type Campaign struct {
 	BaseModel
-	Name           string           `gorm:"size:255;not null;uniqueIndex"`
-	RewardType     *string          `gorm:"size:50;index"` // e.g., "flat_fee", "percentage"
-	RewardValue    *float64         `gorm:""`
-	MaxOccurrences *uint            `gorm:"default:0"`           // 0 for unlimited
-	ValidityDays   *uint            `gorm:"default:0"`           // 0 for no time limit
-	Budget         *decimal.Decimal `gorm:"type:decimal(38,18)"` // Pointer to handle nil as unlimited
-	Description    string           `gorm:"type:text"`
-	StartDate      time.Time        `gorm:"not null;index"`
-	EndDate        time.Time        `gorm:"not null;index"`
-	IsActive       bool             `gorm:"default:true;index"`
-	IsDefault      bool             `gorm:"default:false;index"` // Only one default campaign
-	Events         []Event          `gorm:"many2many:referral_campaign_events;"`
+	Name               string           `gorm:"size:255;not null;uniqueIndex"`
+	RewardType         *string          `gorm:"size:50;index"` // e.g., "flat_fee", "percentage"
+	RewardValue        *float64         `gorm:""`
+	MaxOccurrences     *uint            `gorm:"default:0"`     // 0 for unlimited
+	ValidityDays       *uint            `gorm:"default:0"`     // 0 for no time limit
+	InviteeRewardType  *string          `gorm:"size:50;index"` // e.g., "flat_fee", "percentage"
+	InviteeRewardValue *float64         `gorm:""`
+	Budget             *decimal.Decimal `gorm:"type:decimal(38,18)"` // Pointer to handle nil as unlimited
+	Description        string           `gorm:"type:text"`
+	StartDate          time.Time        `gorm:"not null;index"`
+	EndDate            time.Time        `gorm:"not null;index"`
+	IsActive           bool             `gorm:"default:true;index"`
+	IsDefault          bool             `gorm:"default:false;index"` // Only one default campaign
+	Events             []Event          `gorm:"many2many:referral_campaign_events;"`
 }
 
 func (Campaign) TableName() string {
