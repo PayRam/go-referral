@@ -10,7 +10,7 @@ import (
 
 // EventService handles operations related to events
 type EventService interface {
-	CreateEvent(key, name, eventType string) (*models.Event, error)
+	CreateEvent(key, name string, description *string, eventType string) (*models.Event, error)
 	UpdateEvent(key string, req request.UpdateEventRequest) (*models.Event, error)
 	GetAll() ([]models.Event, error)
 	GetByKey(key string) (*models.Event, error)
@@ -44,7 +44,7 @@ type RefereeService interface {
 }
 
 type EventLogService interface {
-	CreateEventLog(eventKey string, referenceID, referenceType *string, amount *decimal.Decimal, data *string) (*models.EventLog, error)
+	CreateEventLog(eventKey string, referenceID, referenceType string, amount *decimal.Decimal, data *string) (*models.EventLog, error)
 	GetEventLogs(conditions []db.QueryCondition, offset, limit *int, sort *string) ([]models.EventLog, error)
 }
 

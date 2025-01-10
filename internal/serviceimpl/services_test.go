@@ -37,12 +37,13 @@ func TestMain(m *testing.M) {
 }
 
 func setupEvents(t *testing.T) {
-	event1, err := referralService.Events.CreateEvent("signup-event", "User Signup", "simple")
+
+	event1, err := referralService.Events.CreateEvent("signup-event", "User Signup", nil, "simple")
 	assert.NoError(t, err)
 	assert.NotNil(t, event1)
 	assert.Equal(t, "User Signup", event1.Name)
 
-	event2, err := referralService.Events.CreateEvent("payment-event", "Payment Made", "payment")
+	event2, err := referralService.Events.CreateEvent("payment-event", "Payment Made", nil, "payment")
 	assert.NoError(t, err)
 	assert.NotNil(t, event2)
 	assert.Equal(t, "Payment Made", event2.Name)
@@ -242,8 +243,8 @@ func triggerSignupEvent(t *testing.T) (*models.EventLog, error) {
 	userType := "user"
 	eventLog, err := referralService.EventLogs.CreateEventLog(
 		eventKey,
-		&user,
-		&userType,
+		user,
+		userType,
 		&amount,
 		&data,
 	)
@@ -252,8 +253,8 @@ func triggerSignupEvent(t *testing.T) (*models.EventLog, error) {
 
 	// Verify the EventLog is created correctly
 	assert.Equal(t, eventKey, eventLog.EventKey)
-	assert.Equal(t, user, *eventLog.ReferenceID)
-	assert.Equal(t, userType, *eventLog.ReferenceType)
+	assert.Equal(t, user, eventLog.ReferenceID)
+	assert.Equal(t, userType, eventLog.ReferenceType)
 	assert.Equal(t, data, *eventLog.Data)
 	assert.Equal(t, "pending", eventLog.Status)
 
@@ -275,8 +276,8 @@ func triggerPaymentEvent(t *testing.T) (*models.EventLog, error) {
 	userType := "user"
 	eventLog, err := referralService.EventLogs.CreateEventLog(
 		eventKey,
-		&user,
-		&userType,
+		user,
+		userType,
 		&amount,
 		&data,
 	)
@@ -285,8 +286,8 @@ func triggerPaymentEvent(t *testing.T) (*models.EventLog, error) {
 
 	// Verify the EventLog is created correctly
 	assert.Equal(t, eventKey, eventLog.EventKey)
-	assert.Equal(t, user, *eventLog.ReferenceID)
-	assert.Equal(t, userType, *eventLog.ReferenceType)
+	assert.Equal(t, user, eventLog.ReferenceID)
+	assert.Equal(t, userType, eventLog.ReferenceType)
 	assert.Equal(t, amount, *eventLog.Amount)
 	assert.Equal(t, data, *eventLog.Data)
 	assert.Equal(t, "pending", eventLog.Status)

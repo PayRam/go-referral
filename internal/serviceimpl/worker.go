@@ -180,10 +180,10 @@ func getEventKeys(events []models.Event) []string {
 func groupEventLogs(eventLogs []models.EventLog) map[string][]models.EventLog {
 	groupedLogs := make(map[string][]models.EventLog)
 	for _, log := range eventLogs {
-		if log.ReferenceID == nil || log.ReferenceType == nil {
-			continue
-		}
-		key := generateReferenceKey(*log.ReferenceID, *log.ReferenceType)
+		//if log.ReferenceID == nil || log.ReferenceType == nil {
+		//	continue
+		//}
+		key := generateReferenceKey(log.ReferenceID, log.ReferenceType)
 		groupedLogs[key] = append(groupedLogs[key], log)
 	}
 	return groupedLogs

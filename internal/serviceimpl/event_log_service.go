@@ -22,7 +22,7 @@ func NewEventLogService(db *gorm.DB) *eventLogService {
 }
 
 // CreateEventLog creates a new event log entry
-func (s *eventLogService) CreateEventLog(eventKey string, referenceID, referenceType *string, amount *decimal.Decimal, data *string) (*models.EventLog, error) {
+func (s *eventLogService) CreateEventLog(eventKey string, referenceID, referenceType string, amount *decimal.Decimal, data *string) (*models.EventLog, error) {
 	if amount == nil || amount.IsZero() {
 		return nil, errors.New("amount must be greater than 0")
 	}

@@ -19,7 +19,7 @@ func NewEventService(db *gorm.DB) *eventService {
 }
 
 // CreateEvent creates a new event associated with a campaign
-func (s *eventService) CreateEvent(key, name, eventType string) (*models.Event, error) {
+func (s *eventService) CreateEvent(key, name string, description *string, eventType string) (*models.Event, error) {
 	// Check if the event key already exists
 	var count int64
 	if err := s.DB.Model(&models.Event{}).Where("key = ?", key).Count(&count).Error; err != nil {
@@ -31,9 +31,10 @@ func (s *eventService) CreateEvent(key, name, eventType string) (*models.Event, 
 	}
 
 	event := &models.Event{
-		Key:       key,
-		Name:      name,
-		EventType: eventType,
+		Key:         key,
+		Name:        name,
+		Description: description,
+		EventType:   eventType,
 	}
 
 	if err := s.DB.Create(event).Error; err != nil {

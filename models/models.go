@@ -35,12 +35,13 @@ func (Campaign) TableName() string {
 
 // Event represents an action within a campaign that can trigger a reward
 type Event struct {
-	Key       string     `gorm:"primaryKey;type:varchar(50);not null"  seeder:"key,no-update"` // Custom string primary key (e.g., UUID)
-	Name      string     `gorm:"size:255;not null"`                                            // Event name (not unique anymore)
-	EventType string     `gorm:"size:100;not null;index"`                                      // e.g., "simple", "payment"
-	CreatedAt time.Time  `gorm:"autoCreateTime" seeder:"no-update"`                            // Auto-manage created time
-	UpdatedAt time.Time  `gorm:"autoUpdateTime" seeder:"no-update"`                            // Auto-manage updated time
-	DeletedAt *time.Time `gorm:"index" json:"-"  seeder:"no-update"`                           // Soft delete support
+	Key         string     `gorm:"primaryKey;type:varchar(50);not null"  seeder:"key,no-update"` // Custom string primary key (e.g., UUID)
+	Name        string     `gorm:"size:255;not null"`                                            // Event name (not unique anymore)
+	Description *string    `gorm:"type:text"`
+	EventType   string     `gorm:"size:100;not null;index"`            // e.g., "simple", "payment"
+	CreatedAt   time.Time  `gorm:"autoCreateTime" seeder:"no-update"`  // Auto-manage created time
+	UpdatedAt   time.Time  `gorm:"autoUpdateTime" seeder:"no-update"`  // Auto-manage updated time
+	DeletedAt   *time.Time `gorm:"index" json:"-"  seeder:"no-update"` // Soft delete support
 }
 
 func (Event) TableName() string {
@@ -96,8 +97,8 @@ func (Referee) TableName() string {
 type EventLog struct {
 	BaseModel
 	EventKey      string           `gorm:"not null;index" foreignKey:"Key" references:"Event"`
-	ReferenceID   *string          `gorm:"index"` // Composite index
-	ReferenceType *string          `gorm:"index"`
+	ReferenceID   string           `gorm:"index"`
+	ReferenceType string           `gorm:"index"`
 	Amount        *decimal.Decimal `gorm:"type:decimal(38,18);;not null;index"`
 	TriggeredAt   time.Time        `gorm:"not null;index"`                     // Timestamp when the event was triggered
 	Data          *string          `gorm:"type:json;not null"`                 // Arbitrary data associated with the event (JSON format)

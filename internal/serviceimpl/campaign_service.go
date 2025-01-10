@@ -56,6 +56,7 @@ func (s *campaignService) CreateCampaign(name, description string, startDate, en
 		StartDate:      startDate,
 		EndDate:        endDate,
 		IsActive:       true,
+		IsDefault:      true,
 		RewardType:     rewardType,
 		RewardValue:    rewardValue,
 		MaxOccurrences: maxOccurrences,
