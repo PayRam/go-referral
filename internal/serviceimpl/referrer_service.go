@@ -17,12 +17,12 @@ func NewReferrerService(db *gorm.DB) *referrerService {
 	return &referrerService{DB: db}
 }
 
-func (s *referrerService) CreateReferrer(referenceID, referenceType, code string, campaignIDs []uint) (*models.Referrer, error) {
+func (s *referrerService) CreateReferrer(project, referenceID, code string, campaignIDs []uint) (*models.Referrer, error) {
 	// Create the referrer
 	referrer := &models.Referrer{
-		Code:          code,
-		ReferenceID:   referenceID,
-		ReferenceType: referenceType,
+		Project:     project,
+		Code:        code,
+		ReferenceID: referenceID,
 	}
 
 	// Use a transaction to ensure atomicity
@@ -59,25 +59,25 @@ func (s *referrerService) CreateReferrer(referenceID, referenceType, code string
 	return referrer, nil
 }
 
-func (s *referrerService) GetReferrerByReference(referenceID, referenceType string) (*models.Referrer, error) {
+func (s *referrerService) GetReferrerByReference(project, referenceID string) (*models.Referrer, error) {
 	var referral models.Referrer
-	if err := s.DB.Preload("Campaigns").Where("reference_id = ? AND reference_type = ?", referenceID, referenceType).First(&referral).Error; err != nil {
+	if err := s.DB.Preload("Campaigns").Where("project = ? AND reference_id = ?", project, referenceID).First(&referral).Error; err != nil {
 		return nil, err
 	}
 	return &referral, nil
 }
 
-func (s *referrerService) UpdateCampaigns(referenceID, referenceType string, campaignIDs []uint) (*models.Referrer, error) {
+func (s *referrerService) UpdateCampaigns(project, referenceID string, campaignIDs []uint) (*models.Referrer, error) {
 	// Use a database transaction to ensure atomicity
 	var updatedReferrer *models.Referrer
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		var referrer models.Referrer
 
 		// Fetch the referrer for the given reference
-		if err := tx.Where("reference_id = ? AND reference_type = ?", referenceID, referenceType).
+		if err := tx.Where("project = ? AND reference_id = ?", project, referenceID).
 			First(&referrer).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("referrer not found for reference_id=%s and reference_type=%s", referenceID, referenceType)
+				return fmt.Errorf("referrer not found for project=%s and reference_id=%s", project, referenceID)
 			}
 			return err
 		}

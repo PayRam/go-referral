@@ -22,19 +22,19 @@ func NewEventLogService(db *gorm.DB) *eventLogService {
 }
 
 // CreateEventLog creates a new event log entry
-func (s *eventLogService) CreateEventLog(eventKey string, referenceID, referenceType string, amount *decimal.Decimal, data *string) (*models.EventLog, error) {
+func (s *eventLogService) CreateEventLog(project, eventKey string, referenceID string, amount *decimal.Decimal, data *string) (*models.EventLog, error) {
 	if amount == nil || amount.IsZero() {
 		return nil, errors.New("amount must be greater than 0")
 	}
 
 	eventLog := &models.EventLog{
-		EventKey:      eventKey,
-		ReferenceID:   referenceID,
-		ReferenceType: referenceType,
-		Amount:        amount,
-		TriggeredAt:   time.Now(),
-		Data:          data,
-		Status:        "pending",
+		Project:     project,
+		EventKey:    eventKey,
+		ReferenceID: referenceID,
+		Amount:      amount,
+		TriggeredAt: time.Now(),
+		Data:        data,
+		Status:      "pending",
 	}
 
 	if err := s.DB.Create(eventLog).Error; err != nil {
@@ -44,11 +44,13 @@ func (s *eventLogService) CreateEventLog(eventKey string, referenceID, reference
 }
 
 // GetEventLogs retrieves event logs based on dynamic conditions
-func (s *eventLogService) GetEventLogs(conditions []db.QueryCondition, offset, limit *int, sort *string) ([]models.EventLog, error) {
+func (s *eventLogService) GetEventLogs(project string, conditions []db.QueryCondition, offset, limit *int, sort *string) ([]models.EventLog, error) {
 	var eventLogs []models.EventLog
 
 	// Start building the query
 	query := s.DB.Model(&models.EventLog{})
+
+	query = query.Where("project = ?", project)
 
 	// Apply conditions dynamically
 	for _, condition := range conditions {

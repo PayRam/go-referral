@@ -18,8 +18,8 @@ func NewRefereeService(db *gorm.DB) *refereeService {
 	return &refereeService{DB: db}
 }
 
-// CreateRefereeByCode creates a mapping between a referee and a referrer
-func (s *refereeService) CreateReferee(code, referenceID, referenceType string) (*models.Referee, error) {
+// CreateReferee creates a mapping between a referee and a referrer
+func (s *refereeService) CreateReferee(project, code, referenceID string) (*models.Referee, error) {
 	// Validate if the Referrer exists by referral code
 	var referrer models.Referrer
 	if err := s.DB.Where("code = ?", code).First(&referrer).Error; err != nil {
@@ -31,9 +31,9 @@ func (s *refereeService) CreateReferee(code, referenceID, referenceType string) 
 
 	// Create the Referee mapping
 	referee := &models.Referee{
-		ReferrerID:    referrer.ID,
-		ReferenceID:   referenceID,
-		ReferenceType: referenceType,
+		Project:     project,
+		ReferrerID:  referrer.ID,
+		ReferenceID: referenceID,
 	}
 	if err := s.DB.Create(referee).Error; err != nil {
 		return nil, err
@@ -42,11 +42,11 @@ func (s *refereeService) CreateReferee(code, referenceID, referenceType string) 
 }
 
 // GetRefereeByReference fetches a referee by reference ID and reference type
-func (s *refereeService) GetRefereeByReference(referenceID, referenceType string) (*models.Referee, error) {
+func (s *refereeService) GetRefereeByReference(project, referenceID string) (*models.Referee, error) {
 	var referee models.Referee
-	if err := s.DB.Where("reference_id = ? AND reference_type = ?", referenceID, referenceType).First(&referee).Error; err != nil {
+	if err := s.DB.Where("project = ? AND reference_id = ?", project, referenceID).First(&referee).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("referee not found for reference_id=%s and reference_type=%s", referenceID, referenceType)
+			return nil, fmt.Errorf("referee not found for project=%s and reference_id=%s", project, referenceID)
 		}
 		return nil, err
 	}
@@ -54,9 +54,9 @@ func (s *refereeService) GetRefereeByReference(referenceID, referenceType string
 }
 
 // GetRefereesByReferrer fetches all referees associated with a specific referrer
-func (s *refereeService) GetRefereesByReferrer(referrerID uint) ([]models.Referee, error) {
+func (s *refereeService) GetRefereesByReferrer(project string, referrerID uint) ([]models.Referee, error) {
 	var referees []models.Referee
-	if err := s.DB.Where("referrer_id = ?", referrerID).Find(&referees).Error; err != nil {
+	if err := s.DB.Where("project = ? AND referrer_id = ?", project, referrerID).Find(&referees).Error; err != nil {
 		return nil, err
 	}
 	return referees, nil

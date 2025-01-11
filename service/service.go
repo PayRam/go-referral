@@ -10,44 +10,44 @@ import (
 
 // EventService handles operations related to events
 type EventService interface {
-	CreateEvent(key, name string, description *string, eventType string) (*models.Event, error)
-	UpdateEvent(key string, req request.UpdateEventRequest) (*models.Event, error)
-	GetAll() ([]models.Event, error)
-	GetByKey(key string) (*models.Event, error)
-	GetByKeys(keys []string) ([]models.Event, error)
-	SearchByName(name string) ([]models.Event, error)
+	CreateEvent(project, key, name string, description *string, eventType string) (*models.Event, error)
+	UpdateEvent(project, key string, req request.UpdateEventRequest) (*models.Event, error)
+	GetAll(project string) ([]models.Event, error)
+	GetByKey(project, key string) (*models.Event, error)
+	GetByKeys(project string, keys []string) ([]models.Event, error)
+	SearchByName(project, name string) ([]models.Event, error)
 }
 
 // CampaignService handles operations related to campaigns
 type CampaignService interface {
-	CreateCampaign(name, description string, startDate, endDate time.Time, events []models.Event, rewardType *string, rewardValue *float64, maxOccurrences *uint, validityDays *uint, budget *decimal.Decimal) (*models.Campaign, error)
-	GetCampaigns(conditions []db.QueryCondition, offset, limit int, sort *string) ([]models.Campaign, error)
-	UpdateCampaign(id uint, req request.UpdateCampaignRequest) (*models.Campaign, error)
-	UpdateCampaignEvents(campaignID uint, events []models.Event) (*models.Campaign, error)
-	SetDefaultCampaign(campaignID uint) error
-	GetAll() ([]models.Campaign, error)
-	SearchByName(name string) ([]models.Campaign, error)
-	PauseCampaign(campaignID uint) (*models.Campaign, error)
-	DeleteCampaign(campaignID uint) (bool, error)
+	CreateCampaign(project, name, description string, startDate, endDate time.Time, events []models.Event, rewardType *string, rewardValue *float64, maxOccurrences *uint, validityDays *uint, budget *decimal.Decimal) (*models.Campaign, error)
+	GetCampaigns(project string, conditions []db.QueryCondition, offset, limit int, sort *string) ([]models.Campaign, error)
+	UpdateCampaign(project string, id uint, req request.UpdateCampaignRequest) (*models.Campaign, error)
+	UpdateCampaignEvents(project string, campaignID uint, events []models.Event) (*models.Campaign, error)
+	SetDefaultCampaign(project string, campaignID uint) (*models.Campaign, error)
+	GetAll(project string) ([]models.Campaign, error)
+	SearchByName(project string, name string) ([]models.Campaign, error)
+	PauseCampaign(project string, campaignID uint) (*models.Campaign, error)
+	DeleteCampaign(project string, campaignID uint) (bool, error)
 }
 
 // ReferrerService handles operations related to referral codes
 type ReferrerService interface {
-	CreateReferrer(referenceID, referenceType, code string, campaignIDs []uint) (*models.Referrer, error)
-	GetReferrerByReference(referenceID, referenceType string) (*models.Referrer, error)
-	UpdateCampaigns(referenceID, referenceType string, campaignIDs []uint) (*models.Referrer, error)
+	CreateReferrer(project, referenceID, code string, campaignIDs []uint) (*models.Referrer, error)
+	GetReferrerByReference(project, referenceID string) (*models.Referrer, error)
+	UpdateCampaigns(project, referenceID string, campaignIDs []uint) (*models.Referrer, error)
 }
 
 // RefereeService handles operations related to referral codes
 type RefereeService interface {
-	CreateReferee(code, referenceID, referenceType string) (*models.Referee, error)
-	GetRefereeByReference(referenceID, referenceType string) (*models.Referee, error)
-	GetRefereesByReferrer(referrerID uint) ([]models.Referee, error)
+	CreateReferee(project, code, referenceID string) (*models.Referee, error)
+	GetRefereeByReference(project, referenceID string) (*models.Referee, error)
+	GetRefereesByReferrer(project string, referrerID uint) ([]models.Referee, error)
 }
 
 type EventLogService interface {
-	CreateEventLog(eventKey string, referenceID, referenceType string, amount *decimal.Decimal, data *string) (*models.EventLog, error)
-	GetEventLogs(conditions []db.QueryCondition, offset, limit *int, sort *string) ([]models.EventLog, error)
+	CreateEventLog(project, eventKey string, referenceID string, amount *decimal.Decimal, data *string) (*models.EventLog, error)
+	GetEventLogs(project string, conditions []db.QueryCondition, offset, limit *int, sort *string) ([]models.EventLog, error)
 }
 
 type RewardCalculator interface {

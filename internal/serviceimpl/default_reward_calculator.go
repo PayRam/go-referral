@@ -49,13 +49,12 @@ func (d *DefaultRewardCalculator) CalculateReward(
 
 	// Construct the Reward object
 	reward := &models.Reward{
-		CampaignID:    campaign.ID,
-		RefereeID:     referee.ID,
-		RefereeType:   referee.ReferenceType,
-		ReferenceID:   referrer.ReferenceID,
-		ReferenceType: referrer.ReferenceType,
-		Amount:        rewardAmount,
-		Status:        "pending", // Default status for newly calculated rewards
+		Project:     campaign.Project,
+		CampaignID:  campaign.ID,
+		RefereeID:   referee.ID,
+		ReferenceID: referrer.ReferenceID,
+		Amount:      rewardAmount,
+		Status:      "pending", // Default status for newly calculated rewards
 	}
 
 	return reward, nil

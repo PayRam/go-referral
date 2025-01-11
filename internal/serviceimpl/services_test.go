@@ -21,11 +21,13 @@ var (
 	referralService *go_referral.ReferralService
 )
 
+var project = "reftest"
+
 func TestMain(m *testing.M) {
 	// Initialize shared test database
 	var err error
-	db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	//db, err = gorm.Open(sqlite.Open("/Users/sameer/Documents/test1.db"), &gorm.Config{})
+	//db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err = gorm.Open(sqlite.Open("/Users/sameer/Documents/test1.db"), &gorm.Config{})
 	if err != nil {
 		panic("failed to initialize test database")
 	}
@@ -38,24 +40,24 @@ func TestMain(m *testing.M) {
 
 func setupEvents(t *testing.T) {
 
-	event1, err := referralService.Events.CreateEvent("signup-event", "User Signup", nil, "simple")
+	event1, err := referralService.Events.CreateEvent(project, "signup-event", "User Signup", nil, "simple")
 	assert.NoError(t, err)
 	assert.NotNil(t, event1)
 	assert.Equal(t, "User Signup", event1.Name)
 
-	event2, err := referralService.Events.CreateEvent("payment-event", "Payment Made", nil, "payment")
+	event2, err := referralService.Events.CreateEvent(project, "payment-event", "Payment Made", nil, "payment")
 	assert.NoError(t, err)
 	assert.NotNil(t, event2)
 	assert.Equal(t, "Payment Made", event2.Name)
 
-	event3, err := referralService.Events.UpdateEvent("payment-event", request.UpdateEventRequest{
+	event3, err := referralService.Events.UpdateEvent(project, "payment-event", request.UpdateEventRequest{
 		Name: utils.StringPtr("Payment Done"),
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, event3)
 	assert.Equal(t, "Payment Done", event3.Name)
 
-	event4, err := referralService.Events.SearchByName("Payment")
+	event4, err := referralService.Events.SearchByName(project, "Payment")
 	if err != nil {
 		return
 	}
@@ -65,7 +67,7 @@ func setupEvents(t *testing.T) {
 }
 
 func setupCampaign(t *testing.T) {
-	events, err := referralService.Events.GetAll()
+	events, err := referralService.Events.GetAll(project)
 	if err != nil {
 		return
 	}
@@ -75,6 +77,7 @@ func setupCampaign(t *testing.T) {
 	endDate := startDate.AddDate(0, 1, 0) // One month from start date
 	budget := decimal.NewFromFloat(1000.00)
 	campaign, err := referralService.Campaigns.CreateCampaign(
+		project,
 		"New User Campaign",
 		"Campaign for new user signups and payments",
 		startDate,
@@ -104,6 +107,7 @@ func setupCampaign(t *testing.T) {
 	}
 
 	campaign, err = referralService.Campaigns.UpdateCampaign(
+		project,
 		campaign.ID,
 		updateCampaignRequest,
 	)
@@ -112,6 +116,7 @@ func setupCampaign(t *testing.T) {
 	assert.Equal(t, "percentage", *campaign.RewardType)
 
 	campaign, err = referralService.Campaigns.UpdateCampaignEvents(
+		project,
 		campaign.ID,
 		events,
 	)
@@ -124,7 +129,7 @@ func setupCampaign(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(campaignEvents))
 
-	campaigns, err := referralService.Campaigns.SearchByName("User Campaign")
+	campaigns, err := referralService.Campaigns.SearchByName(project, "User Campaign")
 	if err != nil {
 		return
 	}
@@ -139,7 +144,7 @@ func setupReferrer(t *testing.T) {
 		Operator: "=",
 		Value:    1,
 	}
-	campaigns, err := referralService.Campaigns.GetCampaigns([]db2.QueryCondition{condition}, 0, 1, nil)
+	campaigns, err := referralService.Campaigns.GetCampaigns(project, []db2.QueryCondition{condition}, 0, 1, nil)
 	if err != nil {
 		return
 	}
@@ -147,8 +152,8 @@ func setupReferrer(t *testing.T) {
 	code := utils.GenerateReferralCode()
 	// Create a referrer
 	referrer, err := referralService.Referrers.CreateReferrer(
+		project,
 		"user-123",          // ReferenceID
-		"user",              // ReferenceType
 		code,                // Unique code
 		[]uint{campaign.ID}, // CampaignID
 	)
@@ -157,8 +162,8 @@ func setupReferrer(t *testing.T) {
 
 	// Validate the referrer
 	assert.Equal(t, code, referrer.Code)
+	assert.Equal(t, project, referrer.Project)
 	assert.Equal(t, "user-123", referrer.ReferenceID)
-	assert.Equal(t, "user", referrer.ReferenceType)
 	assert.Equal(t, campaign.ID, referrer.Campaigns[0].ID)
 
 	// Fetch and validate the referrer from the database
@@ -166,37 +171,37 @@ func setupReferrer(t *testing.T) {
 	err = db.Preload("Campaigns").Where("id = ?", referrer.ID).First(&dbReferrer).Error
 	assert.NoError(t, err)
 	assert.Equal(t, code, dbReferrer.Code)
+	assert.Equal(t, project, dbReferrer.Project)
 	assert.Equal(t, "user-123", dbReferrer.ReferenceID)
-	assert.Equal(t, "user", dbReferrer.ReferenceType)
 	assert.Equal(t, campaign.ID, dbReferrer.Campaigns[0].ID)
 }
 
 func setupReferee(t *testing.T) {
-	referrer, err := referralService.Referrers.GetReferrerByReference("user-123", "user")
+	referrer, err := referralService.Referrers.GetReferrerByReference(project, "user-123")
 	if err != nil {
 		return
 	}
 	// Create a Referee using the Referrer's code
 	referee, err := referralService.Referees.CreateReferee(
+		project,
 		referrer.Code, // Referrer code
 		"user-456",    // ReferenceID
-		"user",        // ReferenceType
 	)
 	assert.NoError(t, err)
 	assert.NotNil(t, referee)
 
 	// Validate the Referee
 	assert.Equal(t, referrer.ID, referee.ReferrerID)
+	assert.Equal(t, project, referee.Project)
 	assert.Equal(t, "user-456", referee.ReferenceID)
-	assert.Equal(t, "user", referee.ReferenceType)
 
 	// Fetch and validate the Referee from the database
 	var dbReferee models.Referee
 	err = db.Preload("Referrer").Where("id = ?", referee.ID).First(&dbReferee).Error
 	assert.NoError(t, err)
 	assert.Equal(t, referrer.ID, dbReferee.ReferrerID)
+	assert.Equal(t, project, dbReferee.Project)
 	assert.Equal(t, "user-456", dbReferee.ReferenceID)
-	assert.Equal(t, "user", dbReferee.ReferenceType)
 	assert.Equal(t, referrer.Code, dbReferee.Referrer.Code)
 }
 
@@ -220,12 +225,11 @@ func TestCreateReferee(t *testing.T) {
 
 	// Print each reward
 	for _, reward := range rewards {
+		fmt.Printf("Project: %s\n", reward.Project)
 		fmt.Printf("Reward ID: %d\n", reward.ID)
 		fmt.Printf("CampaignID: %d\n", reward.CampaignID)
 		fmt.Printf("RefereeID: %d\n", reward.RefereeID)
-		fmt.Printf("RefereeType: %s\n", reward.RefereeType)
 		fmt.Printf("ReferenceID: %s\n", reward.ReferenceID)
-		fmt.Printf("ReferenceType: %s\n", reward.ReferenceType)
 		fmt.Printf("Amount: %s\n", reward.Amount.String())
 		fmt.Printf("Status: %s\n", reward.Status)
 		if reward.Reason != nil {
@@ -244,11 +248,10 @@ func triggerSignupEvent(t *testing.T) (*models.EventLog, error) {
 	amount := decimal.NewFromFloat(100.50)
 	data := `{"transactionId": "12345"}`
 	user := "user-456"
-	userType := "user"
 	eventLog, err := referralService.EventLogs.CreateEventLog(
+		project,
 		eventKey,
 		user,
-		userType,
 		&amount,
 		&data,
 	)
@@ -256,9 +259,9 @@ func triggerSignupEvent(t *testing.T) (*models.EventLog, error) {
 	assert.NotNil(t, eventLog)
 
 	// Verify the EventLog is created correctly
+	assert.Equal(t, project, eventLog.Project)
 	assert.Equal(t, eventKey, eventLog.EventKey)
 	assert.Equal(t, user, eventLog.ReferenceID)
-	assert.Equal(t, userType, eventLog.ReferenceType)
 	assert.Equal(t, data, *eventLog.Data)
 	assert.Equal(t, "pending", eventLog.Status)
 
@@ -277,11 +280,10 @@ func triggerPaymentEvent(t *testing.T) (*models.EventLog, error) {
 	amount := decimal.NewFromFloat(100.50)
 	data := `{"transactionId": "12345"}`
 	user := "user-456"
-	userType := "user"
 	eventLog, err := referralService.EventLogs.CreateEventLog(
+		project,
 		eventKey,
 		user,
-		userType,
 		&amount,
 		&data,
 	)
@@ -289,9 +291,9 @@ func triggerPaymentEvent(t *testing.T) (*models.EventLog, error) {
 	assert.NotNil(t, eventLog)
 
 	// Verify the EventLog is created correctly
+	assert.Equal(t, project, eventLog.Project)
 	assert.Equal(t, eventKey, eventLog.EventKey)
 	assert.Equal(t, user, eventLog.ReferenceID)
-	assert.Equal(t, userType, eventLog.ReferenceType)
 	assert.Equal(t, amount, *eventLog.Amount)
 	assert.Equal(t, data, *eventLog.Data)
 	assert.Equal(t, "pending", eventLog.Status)

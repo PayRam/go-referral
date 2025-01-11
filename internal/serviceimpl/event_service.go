@@ -19,10 +19,10 @@ func NewEventService(db *gorm.DB) *eventService {
 }
 
 // CreateEvent creates a new event associated with a campaign
-func (s *eventService) CreateEvent(key, name string, description *string, eventType string) (*models.Event, error) {
+func (s *eventService) CreateEvent(project, key, name string, description *string, eventType string) (*models.Event, error) {
 	// Check if the event key already exists
 	var count int64
-	if err := s.DB.Model(&models.Event{}).Where("key = ?", key).Count(&count).Error; err != nil {
+	if err := s.DB.Model(&models.Event{}).Where("project = ? AND key = ?", project, key).Count(&count).Error; err != nil {
 		return nil, fmt.Errorf("failed to check existing event: %w", err)
 	}
 
@@ -31,6 +31,7 @@ func (s *eventService) CreateEvent(key, name string, description *string, eventT
 	}
 
 	event := &models.Event{
+		Project:     project,
 		Key:         key,
 		Name:        name,
 		Description: description,
@@ -44,11 +45,11 @@ func (s *eventService) CreateEvent(key, name string, description *string, eventT
 }
 
 // UpdateEvent updates an existing event
-func (s *eventService) UpdateEvent(key string, req request.UpdateEventRequest) (*models.Event, error) {
+func (s *eventService) UpdateEvent(project, key string, req request.UpdateEventRequest) (*models.Event, error) {
 	var event models.Event
 
 	// Fetch the event by key
-	if err := s.DB.First(&event, "key = ?", key).Error; err != nil {
+	if err := s.DB.First(&event, "project = ? AND key = ?", project, key).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("event not found with key: %s", key)
 		}
@@ -77,22 +78,22 @@ func (s *eventService) UpdateEvent(key string, req request.UpdateEventRequest) (
 	return &event, nil
 }
 
-func (s *eventService) GetAll() ([]models.Event, error) {
+func (s *eventService) GetAll(project string) ([]models.Event, error) {
 	var events []models.Event
 
-	// Fetch all events
-	if err := s.DB.Find(&events).Error; err != nil {
-		return nil, err
+	// Fetch all events for the specified project
+	if err := s.DB.Where("project = ?", project).Find(&events).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch events for project %s: %w", project, err)
 	}
 
 	return events, nil
 }
 
-func (s *eventService) GetByKey(key string) (*models.Event, error) {
+func (s *eventService) GetByKey(project, key string) (*models.Event, error) {
 	var event models.Event
 
 	// Fetch the event by key
-	if err := s.DB.First(&event, "key = ?", key).Error; err != nil {
+	if err := s.DB.First(&event, "project = ? AND key = ?", project, key).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("event not found with key: %s", key)
 		}
@@ -102,11 +103,11 @@ func (s *eventService) GetByKey(key string) (*models.Event, error) {
 	return &event, nil
 }
 
-func (s *eventService) GetByKeys(keys []string) ([]models.Event, error) {
+func (s *eventService) GetByKeys(project string, keys []string) ([]models.Event, error) {
 	var events []models.Event
 
 	// Fetch the events by keys
-	if err := s.DB.Where("key IN ?", keys).Find(&events).Error; err != nil {
+	if err := s.DB.Where("project = ? AND key IN ?", project, keys).Find(&events).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch events for keys %v: %w", keys, err)
 	}
 
@@ -130,12 +131,12 @@ func (s *eventService) GetByKeys(keys []string) ([]models.Event, error) {
 	return events, nil
 }
 
-func (s *eventService) SearchByName(name string) ([]models.Event, error) {
+func (s *eventService) SearchByName(project, name string) ([]models.Event, error) {
 	var events []models.Event
 
 	// Fetch events by name using a case-insensitive search with NOCASE
-	if err := s.DB.Where("name LIKE ? COLLATE NOCASE", "%"+name+"%").Find(&events).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch events for name: %s, error: %w", name, err)
+	if err := s.DB.Where("project = ? AND name LIKE ? COLLATE NOCASE", project, "%"+name+"%").Find(&events).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch events by name: %w", err)
 	}
 
 	return events, nil

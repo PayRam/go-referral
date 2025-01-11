@@ -54,7 +54,7 @@ func (w *worker) RemoveCustomRewardCalculator(eventKey string) error {
 func (w *worker) ProcessPendingEvents() error {
 	// Fetch all active campaigns with preloaded events
 	var campaigns []models.Campaign
-	if err := w.DB.Preload("Events").Where("is_active = ?", true).Find(&campaigns).Error; err != nil {
+	if err := w.DB.Preload("Events").Where("is_active = ? AND is_default = ?", true, true).Find(&campaigns).Error; err != nil {
 		return fmt.Errorf("failed to fetch campaigns: %w", err)
 	}
 
@@ -62,7 +62,13 @@ func (w *worker) ProcessPendingEvents() error {
 	for _, campaign := range campaigns {
 		err := w.DB.Transaction(func(tx *gorm.DB) error {
 			// Fetch pending EventLogs for this campaign's events
-			eventKeys := getEventKeys(campaign.Events)
+
+			var events []models.Event
+			if err := w.DB.Where("project = ?", campaign.Project).Find(&events).Error; err != nil {
+				return fmt.Errorf("failed to fetch events for project %s: %w", campaign.Project, err)
+			}
+
+			eventKeys := getEventKeys(events)
 			var eventLogs []models.EventLog
 			if err := tx.Where("status = ? AND event_key IN (?)", "pending", eventKeys).Find(&eventLogs).Error; err != nil {
 				return fmt.Errorf("failed to fetch pending EventLogs for campaign %d: %w", campaign.ID, err)
@@ -73,7 +79,7 @@ func (w *worker) ProcessPendingEvents() error {
 
 			// Traverse each group of EventLogs
 			for referenceKey, logs := range eventLogGroups {
-				referenceID, referenceType := parseReferenceKey(referenceKey)
+				project, referenceID := parseReferenceKey(referenceKey)
 
 				// Check if all campaign events are satisfied
 				allEventsSatisfied := areAllCampaignEventsSatisfied(campaign.Events, logs)
@@ -83,8 +89,8 @@ func (w *worker) ProcessPendingEvents() error {
 
 				// Check if reward for this campaign and referee already exists
 				var existingReward models.Reward
-				if err := tx.Where("campaign_id = ? AND reference_id = ? AND reference_type = ?",
-					campaign.ID, referenceID, referenceType).First(&existingReward).Error; err == nil {
+				if err := tx.Where("project = ? AND campaign_id = ? AND reference_id = ?",
+					project, campaign.ID, referenceID).First(&existingReward).Error; err == nil {
 					continue // Reward already exists
 				}
 
@@ -96,11 +102,11 @@ func (w *worker) ProcessPendingEvents() error {
 
 				// Create the reward
 				reward := &models.Reward{
-					CampaignID:    campaign.ID,
-					ReferenceID:   referenceID,
-					ReferenceType: referenceType,
-					Amount:        decimal.NewFromFloat(rewardAmount),
-					Status:        "pending",
+					Project:     project,
+					CampaignID:  campaign.ID,
+					ReferenceID: referenceID,
+					Amount:      decimal.NewFromFloat(rewardAmount),
+					Status:      "pending",
 				}
 				if err := tx.Create(reward).Error; err != nil {
 					return fmt.Errorf("failed to create reward for campaign %d: %w", campaign.ID, err)
@@ -183,7 +189,7 @@ func groupEventLogs(eventLogs []models.EventLog) map[string][]models.EventLog {
 		//if log.ReferenceID == nil || log.ReferenceType == nil {
 		//	continue
 		//}
-		key := generateReferenceKey(log.ReferenceID, log.ReferenceType)
+		key := generateReferenceKey(log.Project, log.ReferenceID)
 		groupedLogs[key] = append(groupedLogs[key], log)
 	}
 	return groupedLogs

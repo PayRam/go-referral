@@ -13,9 +13,14 @@ type BaseModel struct {
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-" seeder:"no-update"`
 }
 
+//type ProjectModel struct {
+//	Project string `gorm:"size:100;not null;index"`
+//}
+
 type Campaign struct {
 	BaseModel
-	Name               string           `gorm:"size:255;not null;uniqueIndex"`
+	Project            string           `gorm:"size:100;not null;index"`
+	Name               string           `gorm:"size:255;not null;index"`
 	RewardType         *string          `gorm:"size:50;index"` // e.g., "flat_fee", "percentage"
 	RewardValue        *float64         `gorm:""`
 	MaxOccurrences     *uint            `gorm:"default:0"`     // 0 for unlimited
@@ -28,7 +33,7 @@ type Campaign struct {
 	EndDate            time.Time        `gorm:"not null;index"`
 	IsActive           bool             `gorm:"default:true;index"`
 	IsDefault          bool             `gorm:"default:false;index"` // Only one default campaign
-	Events             []Event          `gorm:"many2many:referral_campaign_events;"`
+	Events             []Event          `gorm:"many2many:referral_campaign_events"`
 }
 
 func (Campaign) TableName() string {
@@ -37,13 +42,14 @@ func (Campaign) TableName() string {
 
 // Event represents an action within a campaign that can trigger a reward
 type Event struct {
-	Key         string     `gorm:"primaryKey;type:varchar(50);not null"  seeder:"key,no-update"` // Custom string primary key (e.g., UUID)
-	Name        string     `gorm:"size:255;not null"`                                            // Event name (not unique anymore)
+	Project     string     `gorm:"size:100;primaryKey;not null;"`
+	Key         string     `gorm:"size:100;primaryKey;not null;" seeder:"key,no-update"`
+	Name        string     `gorm:"size:255;not null"`
 	Description *string    `gorm:"type:text"`
-	EventType   string     `gorm:"size:100;not null;index"`            // e.g., "simple", "payment"
-	CreatedAt   time.Time  `gorm:"autoCreateTime" seeder:"no-update"`  // Auto-manage created time
-	UpdatedAt   time.Time  `gorm:"autoUpdateTime" seeder:"no-update"`  // Auto-manage updated time
-	DeletedAt   *time.Time `gorm:"index" json:"-"  seeder:"no-update"` // Soft delete support
+	EventType   string     `gorm:"size:100;not null;index"`
+	CreatedAt   time.Time  `gorm:"autoCreateTime" seeder:"no-update"`
+	UpdatedAt   time.Time  `gorm:"autoUpdateTime" seeder:"no-update"`
+	DeletedAt   *time.Time `gorm:"index" json:"-" seeder:"no-update"`
 }
 
 func (Event) TableName() string {
@@ -51,10 +57,11 @@ func (Event) TableName() string {
 }
 
 type CampaignEvent struct {
-	CampaignID uint     `gorm:"not null;index:idx_referral_campaign_event"`
-	EventKey   string   `gorm:"not null;type:varchar(50);index:idx_referral_campaign_event"`
-	Campaign   Campaign `gorm:"foreignKey:CampaignID;references:ID"` // Foreign key to Campaign
-	Event      Event    `gorm:"foreignKey:EventKey;references:Key"`  // Foreign key to Event
+	CampaignID uint     `gorm:"not null;uniqueIndex:idx_campaign_event"`
+	Project    string   `gorm:"not null;size:100;uniqueIndex:idx_campaign_event"`
+	EventKey   string   `gorm:"not null;size:100;uniqueIndex:idx_campaign_event"`
+	Campaign   Campaign `gorm:"foreignKey:CampaignID;references:ID"`
+	Event      Event    `gorm:"foreignKey:Project,EventKey;references:Project,Key"`
 }
 
 func (CampaignEvent) TableName() string {
@@ -63,10 +70,10 @@ func (CampaignEvent) TableName() string {
 
 type Referrer struct {
 	BaseModel
-	Code          string     `gorm:"size:50;uniqueIndex;not null"`                         // Unique referral code
-	ReferenceID   string     `gorm:"not null;index:idx_referrer_reference_id_type,unique"` // Composite index
-	ReferenceType string     `gorm:"size:100;not null;index:idx_referrer_reference_id_type,unique"`
-	Campaigns     []Campaign `gorm:"many2many:referral_referrer_campaigns;joinForeignKey:ReferrerID;joinReferences:CampaignID"`
+	Project     string     `gorm:"size:100;not null;uniqueIndex:idx_referrer_project_reference"` // Composite key with ReferenceID
+	ReferenceID string     `gorm:"not null;uniqueIndex:idx_referrer_project_reference"`          // Composite key with Project
+	Code        string     `gorm:"size:50;uniqueIndex;not null"`                                 // Unique referral code
+	Campaigns   []Campaign `gorm:"many2many:referral_referrer_campaigns;joinForeignKey:ReferrerID;joinReferences:CampaignID"`
 }
 
 func (Referrer) TableName() string {
@@ -74,8 +81,8 @@ func (Referrer) TableName() string {
 }
 
 type ReferrerCampaign struct {
-	ReferrerID uint     `gorm:"not null;index:idx_referral_referrer_campaign"`
-	CampaignID uint     `gorm:"not null;index:idx_referral_referrer_campaign"`
+	ReferrerID uint     `gorm:"not null;uniqueIndex:idx_referral_referrer_campaign"`
+	CampaignID uint     `gorm:"not null;uniqueIndex:idx_referral_referrer_campaign"`
 	Campaign   Campaign `gorm:"foreignKey:CampaignID;references:ID"` // Foreign key to Campaign
 	Referrer   Referrer `gorm:"foreignKey:ReferrerID;references:ID"` // Foreign key to Referrer
 }
@@ -86,10 +93,10 @@ func (ReferrerCampaign) TableName() string {
 
 type Referee struct {
 	BaseModel
-	ReferrerID    uint      `gorm:"not null"`                                            // ID of the Referrer (Foreign Key to Referrer table)
-	ReferenceID   string    `gorm:"not null;index:idx_referee_reference_id_type,unique"` // Composite index
-	ReferenceType string    `gorm:"size:100;not null;index:idx_referee_reference_id_type,unique"`
-	Referrer      *Referrer `gorm:"foreignKey:ReferrerID" json:"referrer,omitempty"`
+	Project     string    `gorm:"size:100;not null;uniqueIndex:idx_referee_project_reference"` // Composite key with ReferenceID
+	ReferenceID string    `gorm:"not null;uniqueIndex:idx_referee_project_reference"`          // Composite key with Project
+	ReferrerID  uint      `gorm:"not null;uniqueIndex:idx_referee_project_reference"`          // ID of the Referrer (Foreign Key to Referrer table)
+	Referrer    *Referrer `gorm:"foreignKey:ReferrerID" json:"referrer,omitempty"`
 }
 
 func (Referee) TableName() string {
@@ -98,9 +105,9 @@ func (Referee) TableName() string {
 
 type EventLog struct {
 	BaseModel
+	Project       string           `gorm:"size:100;not null;index"`
 	EventKey      string           `gorm:"not null;index" foreignKey:"Key" references:"Event"`
 	ReferenceID   string           `gorm:"index"`
-	ReferenceType string           `gorm:"index"`
 	Amount        *decimal.Decimal `gorm:"type:decimal(38,18);;not null;index"`
 	TriggeredAt   time.Time        `gorm:"not null;index"`                     // Timestamp when the event was triggered
 	Data          *string          `gorm:"type:json;not null"`                 // Arbitrary data associated with the event (JSON format)
@@ -114,14 +121,13 @@ func (EventLog) TableName() string {
 
 type Reward struct {
 	BaseModel
-	CampaignID    uint            `gorm:"not null;index"` // Foreign key to Campaign
-	RefereeID     uint            `gorm:"not null;index"` // Foreign key to Referee
-	RefereeType   string          `gorm:"size:100;not null;index"`
-	ReferenceID   string          `gorm:"index"`                              // ReferenceID of the entity related to the reward
-	ReferenceType string          `gorm:"index"`                              // ReferenceType of the entity related to the reward
-	Amount        decimal.Decimal `gorm:"type:decimal(38,18);not null"`       // Calculated reward amount
-	Status        string          `gorm:"size:50;default:'pending';not null"` // Reward status (e.g., "pending", "processed", "failed")
-	Reason        *string         `gorm:"type:text"`                          // Reason for reward status (optional)
+	Project     string          `gorm:"size:100;not null;index"`
+	CampaignID  uint            `gorm:"not null;index"`                     // Foreign key to Campaign
+	RefereeID   uint            `gorm:"not null;index"`                     // Foreign key to Referee
+	ReferenceID string          `gorm:"index"`                              // ReferenceID of the entity related to the reward
+	Amount      decimal.Decimal `gorm:"type:decimal(38,18);not null"`       // Calculated reward amount
+	Status      string          `gorm:"size:50;default:'pending';not null"` // Reward status (e.g., "pending", "processed", "failed")
+	Reason      *string         `gorm:"type:text"`                          // Reason for reward status (optional)
 }
 
 func (Reward) TableName() string {
