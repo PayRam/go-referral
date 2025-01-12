@@ -21,33 +21,37 @@ type EventService interface {
 // CampaignService handles operations related to campaigns
 type CampaignService interface {
 	CreateCampaign(project, name, description string, startDate, endDate time.Time, events []models.Event, rewardType *string, rewardValue *float64, maxOccurrences *uint, validityDays *uint, budget *decimal.Decimal) (*models.Campaign, error)
-	GetCampaigns(project string, conditions []db.QueryCondition, offset, limit int, sort *string) ([]models.Campaign, error)
+	GetCampaigns(req request.GetCampaignsRequest) ([]models.Campaign, int64, error)
 	UpdateCampaign(project string, id uint, req request.UpdateCampaignRequest) (*models.Campaign, error)
 	UpdateCampaignEvents(project string, campaignID uint, events []models.Event) (*models.Campaign, error)
 	SetDefaultCampaign(project string, campaignID uint) (*models.Campaign, error)
-	GetAll(project string) ([]models.Campaign, error)
-	SearchByName(project string, name string) ([]models.Campaign, error)
 	PauseCampaign(project string, campaignID uint) (*models.Campaign, error)
 	DeleteCampaign(project string, campaignID uint) (bool, error)
+	GetTotalCampaigns(req request.GetCampaignsRequest) (int64, error)
 }
 
 // ReferrerService handles operations related to referral codes
 type ReferrerService interface {
 	CreateReferrer(project, referenceID, code string, campaignIDs []uint) (*models.Referrer, error)
-	GetReferrerByReference(project, referenceID string) (*models.Referrer, error)
+	GetReferrers(req request.GetReferrerRequest) ([]models.Referrer, int64, error)
 	UpdateCampaigns(project, referenceID string, campaignIDs []uint) (*models.Referrer, error)
+	GetTotalReferrers(req request.GetReferrerRequest) (int64, error)
 }
 
 // RefereeService handles operations related to referral codes
 type RefereeService interface {
 	CreateReferee(project, code, referenceID string) (*models.Referee, error)
-	GetRefereeByReference(project, referenceID string) (*models.Referee, error)
-	GetRefereesByReferrer(project string, referrerID uint) ([]models.Referee, error)
+	GetReferees(req request.GetRefereeRequest) ([]models.Referee, int64, error)
+	GetTotalReferees(req request.GetRefereeRequest) (int64, error)
 }
 
 type EventLogService interface {
 	CreateEventLog(project, eventKey string, referenceID string, amount *decimal.Decimal, data *string) (*models.EventLog, error)
 	GetEventLogs(project string, conditions []db.QueryCondition, offset, limit *int, sort *string) ([]models.EventLog, error)
+}
+
+type RewardService interface {
+	GetTotalRewards(request request.GetRewardRequest) (decimal.Decimal, error)
 }
 
 type RewardCalculator interface {

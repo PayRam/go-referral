@@ -3,7 +3,6 @@ package serviceimpl
 import (
 	"errors"
 	"fmt"
-	"github.com/PayRam/go-referral/internal/db"
 	"github.com/PayRam/go-referral/models"
 	"github.com/PayRam/go-referral/request"
 	"github.com/shopspring/decimal"
@@ -103,40 +102,57 @@ func (s *campaignService) CreateCampaign(project, name, description string, star
 }
 
 // GetCampaigns retrieves campaigns based on dynamic conditions
-func (s *campaignService) GetCampaigns(project string, conditions []db.QueryCondition, offset, limit int, sort *string) ([]models.Campaign, error) {
+func (s *campaignService) GetCampaigns(req request.GetCampaignsRequest) ([]models.Campaign, int64, error) {
 	var campaigns []models.Campaign
+	var count int64
 
-	// Start building the query
+	// Start query
 	query := s.DB.Model(&models.Campaign{})
 
-	query = query.Where("project = ?", project)
-	// Apply conditions dynamically
-	if conditions != nil {
-		for _, condition := range conditions {
-			// Build the query with operator
-			query = query.Where(fmt.Sprintf("%s %s ?", condition.Field, condition.Operator), condition.Value)
-		}
+	// Apply filters
+	if req.Project != nil {
+		query = query.Where("project = ?", *req.Project)
+	}
+	if req.ID != nil {
+		query = query.Where("id = ?", *req.ID)
+	}
+	if req.Name != nil {
+		query = query.Where("name LIKE ?", "%"+*req.Name+"%")
+	}
+	if req.IsActive != nil {
+		query = query.Where("is_active = ?", *req.IsActive)
+	}
+	if req.IsDefault != nil {
+		query = query.Where("is_default = ?", *req.IsActive)
+	}
+	if req.StartDateMin != nil {
+		query = query.Where("start_date >= ?", *req.StartDateMin)
+	}
+	if req.StartDateMax != nil {
+		query = query.Where("start_date <= ?", *req.StartDateMax)
+	}
+	if req.EndDateMin != nil {
+		query = query.Where("end_date >= ?", *req.EndDateMin)
+	}
+	if req.EndDateMax != nil {
+		query = query.Where("end_date <= ?", *req.EndDateMax)
 	}
 
-	// Apply offset and limit
-	if offset > 0 {
-		query = query.Offset(offset)
-	}
-	if limit > 0 {
-		query = query.Limit(limit)
+	// Calculate total count before applying pagination
+	countQuery := query
+	if err := countQuery.Count(&count).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count campaigns: %w", err)
 	}
 
-	// Apply sorting
-	if sort != nil {
-		query = query.Order(*sort)
-	}
+	// Apply pagination conditions
+	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
-	// Execute the query
+	// Fetch records with pagination
 	if err := query.Find(&campaigns).Error; err != nil {
-		return nil, err
+		return nil, 0, fmt.Errorf("failed to fetch campaigns: %w", err)
 	}
 
-	return campaigns, nil
+	return campaigns, count, nil
 }
 
 // UpdateCampaign updates an existing campaign
@@ -321,28 +337,6 @@ func (s *campaignService) SetDefaultCampaign(project string, campaignID uint) (*
 	return &updatedCampaign, nil
 }
 
-func (s *campaignService) GetAll(project string) ([]models.Campaign, error) {
-	var campaigns []models.Campaign
-
-	// Fetch all campaigns for the specified project
-	if err := s.DB.Where("project = ?", project).Find(&campaigns).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch campaigns for project %s: %w", project, err)
-	}
-
-	return campaigns, nil
-}
-
-func (s *campaignService) SearchByName(project string, name string) ([]models.Campaign, error) {
-	var campaigns []models.Campaign
-
-	// Fetch campaigns by project and name using a case-insensitive search
-	if err := s.DB.Where("project = ? AND name LIKE ? COLLATE NOCASE", project, "%"+name+"%").Find(&campaigns).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch campaigns by name for project %s: %w", project, err)
-	}
-
-	return campaigns, nil
-}
-
 // PauseCampaign updates an existing campaign to set it as inactive
 func (s *campaignService) PauseCampaign(project string, campaignID uint) (*models.Campaign, error) {
 	var campaign models.Campaign
@@ -409,4 +403,46 @@ func (s *campaignService) DeleteCampaign(project string, campaignID uint) (bool,
 	}
 
 	return true, nil
+}
+
+func (s *campaignService) GetTotalCampaigns(req request.GetCampaignsRequest) (int64, error) {
+	var count int64
+
+	// Build the query
+	query := s.DB.Model(&models.Campaign{})
+	// Apply filters
+	if req.Project != nil {
+		query = query.Where("project = ?", *req.Project)
+	}
+	if req.ID != nil {
+		query = query.Where("id = ?", *req.ID)
+	}
+	if req.Name != nil {
+		query = query.Where("name LIKE ?", "%"+*req.Name+"%")
+	}
+	if req.IsActive != nil {
+		query = query.Where("is_active = ?", *req.IsActive)
+	}
+	if req.IsDefault != nil {
+		query = query.Where("is_default = ?", *req.IsActive)
+	}
+	if req.StartDateMin != nil {
+		query = query.Where("start_date >= ?", *req.StartDateMin)
+	}
+	if req.StartDateMax != nil {
+		query = query.Where("start_date <= ?", *req.StartDateMax)
+	}
+	if req.EndDateMin != nil {
+		query = query.Where("end_date >= ?", *req.EndDateMin)
+	}
+	if req.EndDateMax != nil {
+		query = query.Where("end_date <= ?", *req.EndDateMax)
+	}
+
+	// Count the records
+	if err := query.Count(&count).Error; err != nil {
+		return 0, fmt.Errorf("failed to count referrers: %w", err)
+	}
+
+	return count, nil
 }

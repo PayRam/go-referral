@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/PayRam/go-referral/models"
+	"github.com/PayRam/go-referral/request"
 	"gorm.io/gorm"
 )
 
@@ -31,9 +32,10 @@ func (s *refereeService) CreateReferee(project, code, referenceID string) (*mode
 
 	// Create the Referee mapping
 	referee := &models.Referee{
-		Project:     project,
-		ReferrerID:  referrer.ID,
-		ReferenceID: referenceID,
+		Project:             project,
+		ReferrerID:          referrer.ID,
+		ReferrerReferenceID: referrer.ReferenceID,
+		ReferenceID:         referenceID,
 	}
 	if err := s.DB.Create(referee).Error; err != nil {
 		return nil, err
@@ -41,23 +43,72 @@ func (s *refereeService) CreateReferee(project, code, referenceID string) (*mode
 	return referee, nil
 }
 
-// GetRefereeByReference fetches a referee by reference ID and reference type
-func (s *refereeService) GetRefereeByReference(project, referenceID string) (*models.Referee, error) {
-	var referee models.Referee
-	if err := s.DB.Where("project = ? AND reference_id = ?", project, referenceID).First(&referee).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("referee not found for project=%s and reference_id=%s", project, referenceID)
-		}
-		return nil, err
+func (s *refereeService) GetReferees(req request.GetRefereeRequest) ([]models.Referee, int64, error) {
+	var referees []models.Referee
+	var count int64
+
+	// Start query
+	query := s.DB.Model(&models.Referee{})
+
+	// Apply filters
+	if req.Project != nil {
+		query = query.Where("project = ?", *req.Project)
 	}
-	return &referee, nil
+	if req.ID != nil {
+		query = query.Where("id = ?", *req.ID)
+	}
+	if req.ReferenceID != nil {
+		query = query.Where("reference_id = ?", *req.ReferenceID)
+	}
+	if req.ReferrerID != nil {
+		query = query.Where("referrer_id = ?", *req.ReferrerID)
+	}
+	if req.ReferrerReferenceID != nil {
+		query = query.Where("referrer_reference_id = ?", *req.ReferrerReferenceID)
+	}
+
+	// Calculate total count before applying pagination
+	countQuery := query
+	if err := countQuery.Count(&count).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count referees: %w", err)
+	}
+
+	// Apply pagination conditions
+	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
+
+	// Fetch records with pagination
+	if err := query.Find(&referees).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to fetch referees: %w", err)
+	}
+
+	return referees, count, nil
 }
 
-// GetRefereesByReferrer fetches all referees associated with a specific referrer
-func (s *refereeService) GetRefereesByReferrer(project string, referrerID uint) ([]models.Referee, error) {
-	var referees []models.Referee
-	if err := s.DB.Where("project = ? AND referrer_id = ?", project, referrerID).Find(&referees).Error; err != nil {
-		return nil, err
+func (s *refereeService) GetTotalReferees(req request.GetRefereeRequest) (int64, error) {
+	var count int64
+
+	// Build the query
+	query := s.DB.Model(&models.Referee{})
+	if req.Project != nil {
+		query = query.Where("project = ?", *req.Project)
 	}
-	return referees, nil
+	if req.ID != nil {
+		query = query.Where("id = ?", *req.ID)
+	}
+	if req.ReferenceID != nil {
+		query = query.Where("reference_id = ?", *req.ReferenceID)
+	}
+	if req.ReferrerID != nil {
+		query = query.Where("referrer_id = ?", *req.ReferrerID)
+	}
+	if req.ReferrerReferenceID != nil {
+		query = query.Where("referrer_reference_id = ?", *req.ReferrerReferenceID)
+	}
+
+	// Count the records
+	if err := query.Count(&count).Error; err != nil {
+		return 0, fmt.Errorf("failed to count referees: %w", err)
+	}
+
+	return count, nil
 }

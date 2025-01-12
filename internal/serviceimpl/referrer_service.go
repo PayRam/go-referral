@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/PayRam/go-referral/models"
+	"github.com/PayRam/go-referral/request"
 	"gorm.io/gorm"
 )
 
@@ -59,12 +60,42 @@ func (s *referrerService) CreateReferrer(project, referenceID, code string, camp
 	return referrer, nil
 }
 
-func (s *referrerService) GetReferrerByReference(project, referenceID string) (*models.Referrer, error) {
-	var referral models.Referrer
-	if err := s.DB.Preload("Campaigns").Where("project = ? AND reference_id = ?", project, referenceID).First(&referral).Error; err != nil {
-		return nil, err
+func (s *referrerService) GetReferrers(req request.GetReferrerRequest) ([]models.Referrer, int64, error) {
+	var referrers []models.Referrer
+	var count int64
+
+	// Start query
+	query := s.DB.Model(&models.Referrer{})
+
+	// Apply filters
+	if req.Project != nil {
+		query = query.Where("project = ?", *req.Project)
 	}
-	return &referral, nil
+	if req.ID != nil {
+		query = query.Where("id = ?", *req.ID)
+	}
+	if req.ReferenceID != nil {
+		query = query.Where("reference_id = ?", *req.ReferenceID)
+	}
+	if req.Code != nil {
+		query = query.Where("code = ?", *req.Code)
+	}
+
+	// Calculate total count before applying pagination
+	countQuery := query
+	if err := countQuery.Count(&count).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count referrers: %w", err)
+	}
+
+	// Apply pagination conditions
+	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
+
+	// Fetch records with pagination
+	if err := query.Find(&referrers).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to fetch referrers: %w", err)
+	}
+
+	return referrers, count, nil
 }
 
 func (s *referrerService) UpdateCampaigns(project, referenceID string, campaignIDs []uint) (*models.Referrer, error) {
@@ -112,4 +143,31 @@ func (s *referrerService) UpdateCampaigns(project, referenceID string, campaignI
 	}
 
 	return updatedReferrer, nil
+}
+
+func (s *referrerService) GetTotalReferrers(req request.GetReferrerRequest) (int64, error) {
+	var count int64
+
+	// Build the query
+	query := s.DB.Model(&models.Referrer{})
+	// Apply filters
+	if req.Project != nil {
+		query = query.Where("project = ?", *req.Project)
+	}
+	if req.ID != nil {
+		query = query.Where("id = ?", *req.ID)
+	}
+	if req.ReferenceID != nil {
+		query = query.Where("reference_id = ?", *req.ReferenceID)
+	}
+	if req.Code != nil {
+		query = query.Where("code = ?", *req.Code)
+	}
+
+	// Count the records
+	if err := query.Count(&count).Error; err != nil {
+		return 0, fmt.Errorf("failed to count referrers: %w", err)
+	}
+
+	return count, nil
 }

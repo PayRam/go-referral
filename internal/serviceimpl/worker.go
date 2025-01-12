@@ -74,12 +74,17 @@ func (w *worker) ProcessPendingEvents() error {
 				return fmt.Errorf("failed to fetch pending EventLogs for campaign %d: %w", campaign.ID, err)
 			}
 
-			// Group EventLogs by ReferenceID and ReferenceType
+			// Group EventLogs by ReferrerReferenceID and ReferenceType
 			eventLogGroups := groupEventLogs(eventLogs)
 
 			// Traverse each group of EventLogs
 			for referenceKey, logs := range eventLogGroups {
-				project, referenceID := parseReferenceKey(referenceKey)
+				project, refereeReferenceID := parseReferenceKey(referenceKey)
+
+				var referee models.Referee
+				if err := tx.Preload("Referrer").Where("project = ? AND reference_id = ?", campaign.Project, refereeReferenceID).Find(&referee).Error; err != nil {
+					return fmt.Errorf("failed to fetch referee for project %s and reference_id %s: %w", campaign.Project, refereeReferenceID, err)
+				}
 
 				// Check if all campaign events are satisfied
 				allEventsSatisfied := areAllCampaignEventsSatisfied(campaign.Events, logs)
@@ -90,7 +95,7 @@ func (w *worker) ProcessPendingEvents() error {
 				// Check if reward for this campaign and referee already exists
 				var existingReward models.Reward
 				if err := tx.Where("project = ? AND campaign_id = ? AND reference_id = ?",
-					project, campaign.ID, referenceID).First(&existingReward).Error; err == nil {
+					project, campaign.ID, refereeReferenceID).First(&existingReward).Error; err == nil {
 					continue // Reward already exists
 				}
 
@@ -102,11 +107,15 @@ func (w *worker) ProcessPendingEvents() error {
 
 				// Create the reward
 				reward := &models.Reward{
-					Project:     project,
-					CampaignID:  campaign.ID,
-					ReferenceID: referenceID,
-					Amount:      decimal.NewFromFloat(rewardAmount),
-					Status:      "pending",
+					Project:             project,
+					CampaignID:          campaign.ID,
+					ReferrerID:          referee.Referrer.ID,
+					ReferrerReferenceID: referee.Referrer.ReferenceID,
+					ReferrerCode:        referee.Referrer.Code,
+					RefereeID:           referee.ID,
+					RefereeReferenceID:  referee.ReferenceID,
+					Amount:              decimal.NewFromFloat(rewardAmount),
+					Status:              "pending",
 				}
 				if err := tx.Create(reward).Error; err != nil {
 					return fmt.Errorf("failed to create reward for campaign %d: %w", campaign.ID, err)
@@ -186,7 +195,7 @@ func getEventKeys(events []models.Event) []string {
 func groupEventLogs(eventLogs []models.EventLog) map[string][]models.EventLog {
 	groupedLogs := make(map[string][]models.EventLog)
 	for _, log := range eventLogs {
-		//if log.ReferenceID == nil || log.ReferenceType == nil {
+		//if log.ReferrerReferenceID == nil || log.ReferenceType == nil {
 		//	continue
 		//}
 		key := generateReferenceKey(log.Project, log.ReferenceID)

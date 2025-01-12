@@ -3,7 +3,6 @@ package serviceimpl_test
 import (
 	"fmt"
 	go_referral "github.com/PayRam/go-referral"
-	db2 "github.com/PayRam/go-referral/internal/db"
 	"github.com/PayRam/go-referral/models"
 	"github.com/PayRam/go-referral/request"
 	"github.com/PayRam/go-referral/utils"
@@ -129,7 +128,13 @@ func setupCampaign(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(campaignEvents))
 
-	campaigns, err := referralService.Campaigns.SearchByName(project, "User Campaign")
+	name := "User Campaign"
+	req := request.GetCampaignsRequest{
+		Project: &project,
+		Name:    &name,
+	}
+
+	campaigns, _, err := referralService.Campaigns.GetCampaigns(req)
 	if err != nil {
 		return
 	}
@@ -139,12 +144,12 @@ func setupCampaign(t *testing.T) {
 }
 
 func setupReferrer(t *testing.T) {
-	condition := db2.QueryCondition{
-		Field:    "id",
-		Operator: "=",
-		Value:    1,
+	id := uint(1)
+	req := request.GetCampaignsRequest{
+		ID: &id,
 	}
-	campaigns, err := referralService.Campaigns.GetCampaigns(project, []db2.QueryCondition{condition}, 0, 1, nil)
+
+	campaigns, _, err := referralService.Campaigns.GetCampaigns(req)
 	if err != nil {
 		return
 	}
@@ -153,7 +158,7 @@ func setupReferrer(t *testing.T) {
 	// Create a referrer
 	referrer, err := referralService.Referrers.CreateReferrer(
 		project,
-		"user-123",          // ReferenceID
+		"user-123",          // ReferrerReferenceID
 		code,                // Unique code
 		[]uint{campaign.ID}, // CampaignID
 	)
@@ -177,15 +182,22 @@ func setupReferrer(t *testing.T) {
 }
 
 func setupReferee(t *testing.T) {
-	referrer, err := referralService.Referrers.GetReferrerByReference(project, "user-123")
-	if err != nil {
-		return
+	referenceID := "user-123"
+	req := request.GetReferrerRequest{
+		Project:     &project,
+		ReferenceID: &referenceID,
 	}
+
+	referrers, _, err := referralService.Referrers.GetReferrers(req)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(referrers))
+
+	referrer := referrers[0]
 	// Create a Referee using the Referrer's code
 	referee, err := referralService.Referees.CreateReferee(
 		project,
 		referrer.Code, // Referrer code
-		"user-456",    // ReferenceID
+		"user-456",    // ReferrerReferenceID
 	)
 	assert.NoError(t, err)
 	assert.NotNil(t, referee)
@@ -229,7 +241,7 @@ func TestCreateReferee(t *testing.T) {
 		fmt.Printf("Reward ID: %d\n", reward.ID)
 		fmt.Printf("CampaignID: %d\n", reward.CampaignID)
 		fmt.Printf("RefereeID: %d\n", reward.RefereeID)
-		fmt.Printf("ReferenceID: %s\n", reward.ReferenceID)
+		fmt.Printf("ReferrerReferenceID: %s\n", reward.ReferrerReferenceID)
 		fmt.Printf("Amount: %s\n", reward.Amount.String())
 		fmt.Printf("Status: %s\n", reward.Status)
 		if reward.Reason != nil {
