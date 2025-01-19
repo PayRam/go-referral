@@ -106,6 +106,16 @@ type UpdateCampaignRequest struct {
 	EventKeys []string `json:"eventKeys"`
 }
 
+type CreateReferrerRequest struct {
+	ReferenceID string `json:"referenceID" binding:"required"`
+	Code        string `json:"code" binding:"required"`
+	CampaignIDs []uint `json:"campaignIDs"`
+}
+
+type UpdateReferrerRequest struct {
+	CampaignIDs []uint `json:"campaignIDs"`
+}
+
 type GetEventsRequest struct {
 	Project              *string              `json:"project"`              // Filter by name
 	ID                   *uint                `json:"id"`                   // Filter by ID

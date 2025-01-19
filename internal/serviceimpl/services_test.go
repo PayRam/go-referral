@@ -90,9 +90,11 @@ func createReferrer(t *testing.T, project, referrerUser string, campaignIDs []ui
 	// Create a referrer
 	referrer, err := referralService.Referrers.CreateReferrer(
 		project,
-		referrerUser, // ReferrerReferenceID
-		code,         // Unique code
-		campaignIDs,  // CampaignID
+		request.CreateReferrerRequest{
+			Code:        code,
+			ReferenceID: referrerUser,
+			CampaignIDs: campaignIDs,
+		},
 	)
 	assert.NoError(t, err)
 	assert.NotNil(t, referrer)

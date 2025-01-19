@@ -18,12 +18,12 @@ func NewReferrerService(db *gorm.DB) *referrerService {
 	return &referrerService{DB: db}
 }
 
-func (s *referrerService) CreateReferrer(project, referenceID, code string, campaignIDs []uint) (*models.Referrer, error) {
+func (s *referrerService) CreateReferrer(project string, req request.CreateReferrerRequest) (*models.Referrer, error) {
 	// Create the referrer
 	referrer := &models.Referrer{
 		Project:     project,
-		Code:        code,
-		ReferenceID: referenceID,
+		Code:        req.Code,
+		ReferenceID: req.ReferenceID,
 	}
 
 	// Use a transaction to ensure atomicity
@@ -34,8 +34,8 @@ func (s *referrerService) CreateReferrer(project, referenceID, code string, camp
 		}
 
 		// Associate campaigns if provided
-		if len(campaignIDs) > 0 {
-			for _, campaignID := range campaignIDs {
+		if len(req.CampaignIDs) > 0 {
+			for _, campaignID := range req.CampaignIDs {
 				association := &models.ReferrerCampaign{
 					Project:    project,
 					ReferrerID: referrer.ID,
@@ -99,7 +99,7 @@ func (s *referrerService) GetReferrers(req request.GetReferrerRequest) ([]models
 	return referrers, count, nil
 }
 
-func (s *referrerService) UpdateCampaigns(project, referenceID string, campaignIDs []uint) (*models.Referrer, error) {
+func (s *referrerService) UpdateReferrer(project, referenceID string, request request.UpdateReferrerRequest) (*models.Referrer, error) {
 	// Use a database transaction to ensure atomicity
 	var updatedReferrer *models.Referrer
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
@@ -120,7 +120,7 @@ func (s *referrerService) UpdateCampaigns(project, referenceID string, campaignI
 		}
 
 		// Add new campaign associations
-		for _, campaignID := range campaignIDs {
+		for _, campaignID := range request.CampaignIDs {
 			association := &models.ReferrerCampaign{
 				Project:    project,
 				ReferrerID: referrer.ID,

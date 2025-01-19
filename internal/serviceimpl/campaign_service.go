@@ -212,6 +212,42 @@ func (s *campaignService) GetCampaigns(req request.GetCampaignsRequest) ([]model
 	// Start query
 	query := s.DB.Model(&models.Campaign{})
 
+	query = getCampaignRequestQueryParams(req, query)
+
+	// Calculate total count before applying pagination
+	countQuery := query
+	if err := countQuery.Count(&count).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count campaigns: %w", err)
+	}
+
+	// Apply pagination conditions
+	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
+
+	// Fetch records with pagination
+	if err := query.Find(&campaigns).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to fetch campaigns: %w", err)
+	}
+
+	return campaigns, count, nil
+}
+
+func (s *campaignService) GetTotalCampaigns(req request.GetCampaignsRequest) (int64, error) {
+	var count int64
+
+	// Build the query
+	query := s.DB.Model(&models.Campaign{})
+
+	query = getCampaignRequestQueryParams(req, query)
+
+	// Count the records
+	if err := query.Count(&count).Error; err != nil {
+		return 0, fmt.Errorf("failed to count referrers: %w", err)
+	}
+
+	return count, nil
+}
+
+func getCampaignRequestQueryParams(req request.GetCampaignsRequest, query *gorm.DB) *gorm.DB {
 	// Apply filters
 	if req.Project != nil {
 		query = query.Where("project = ?", *req.Project)
@@ -240,22 +276,7 @@ func (s *campaignService) GetCampaigns(req request.GetCampaignsRequest) ([]model
 	if req.EndDateMax != nil {
 		query = query.Where("end_date <= ?", *req.EndDateMax)
 	}
-
-	// Calculate total count before applying pagination
-	countQuery := query
-	if err := countQuery.Count(&count).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to count campaigns: %w", err)
-	}
-
-	// Apply pagination conditions
-	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
-
-	// Fetch records with pagination
-	if err := query.Find(&campaigns).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to fetch campaigns: %w", err)
-	}
-
-	return campaigns, count, nil
+	return query
 }
 
 // UpdateCampaign updates an existing campaign
@@ -511,6 +532,176 @@ func (s *campaignService) UpdateCampaign(project string, id uint, req request.Up
 
 	// Assign events to avoid redundant reloading
 	campaign.Events = events
+
+	return &campaign, nil
+}
+
+func (s *campaignService) SetDefaultCampaign(project string, campaignID uint) (*models.Campaign, error) {
+	var updatedCampaign models.Campaign
+
+	// Perform the update in a transaction
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+
+		// Set the new campaign as the default
+		if err := tx.Model(&models.Campaign{}).
+			Where("project = ? AND id = ?", project, campaignID).
+			Update("is_default", true).Error; err != nil {
+			return fmt.Errorf("failed to set campaign %d as default: %w", campaignID, err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Reload the updated campaign with its associations
+	if err := s.DB.Preload("Events").First(&updatedCampaign, "project = ? AND id = ?", project, campaignID).Error; err != nil {
+		return nil, fmt.Errorf("failed to reload updated campaign: %w", err)
+	}
+
+	return &updatedCampaign, nil
+}
+
+func (s *campaignService) RemoveDefaultCampaign(project string, campaignID uint) (*models.Campaign, error) {
+	var updatedCampaign models.Campaign
+	// Perform the update in a transaction
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		// Set all campaigns in the project to "is_default = false"
+		if err := tx.Model(&models.Campaign{}).
+			Where("project = ? AND id = ?", project, campaignID).
+			Update("is_default", false).Error; err != nil {
+			return fmt.Errorf("failed to remove default status from campaigns in project %s: %w", project, err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Reload the updated campaign with its associations
+	if err := s.DB.Preload("Events").First(&updatedCampaign, "project = ? AND id = ?", project, campaignID).Error; err != nil {
+		return nil, fmt.Errorf("failed to reload updated campaign: %w", err)
+	}
+
+	return &updatedCampaign, nil
+}
+
+// PauseCampaign updates an existing campaign to set it as inactive
+func (s *campaignService) PauseCampaign(project string, campaignID uint) (*models.Campaign, error) {
+	var campaign models.Campaign
+
+	// Use a transaction to ensure atomicity
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		// Fetch the campaign for the given project and ID
+		if err := tx.Where("project = ? AND id = ?", project, campaignID).First(&campaign).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("campaign not found for project %s and ID %d: %w", project, campaignID, err)
+			}
+			return err
+		}
+
+		// Check if the campaign is already active
+		if campaign.Status == "paused" {
+			return fmt.Errorf("campaign is already paused")
+		}
+
+		// Update the campaign status
+		if err := tx.Model(&campaign).Update("status", "paused").Error; err != nil {
+			return fmt.Errorf("failed to pause the campaign: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Reload the campaign with associated events
+	if err := s.DB.Preload("Events").Where("project = ? AND id = ?", project, campaignID).First(&campaign).Error; err != nil {
+		return nil, fmt.Errorf("failed to reload updated campaign: %w", err)
+	}
+
+	return &campaign, nil
+}
+
+func (s *campaignService) ResumeCampaign(project string, campaignID uint) (*models.Campaign, error) {
+	var campaign models.Campaign
+
+	// Use a transaction to ensure atomicity
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		// Fetch the campaign for the given project and ID
+		if err := tx.Where("project = ? AND id = ?", project, campaignID).First(&campaign).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("campaign not found for project %s and ID %d: %w", project, campaignID, err)
+			}
+			return err
+		}
+
+		// Check if the campaign is already active
+		if campaign.Status == "active" {
+			return fmt.Errorf("campaign is already active")
+		}
+
+		// Update the campaign status
+		if err := tx.Model(&campaign).Update("status", "active").Error; err != nil {
+			return fmt.Errorf("failed to activate the campaign: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Reload the campaign with associated events
+	if err := s.DB.Preload("Events").Where("project = ? AND id = ?", project, campaignID).First(&campaign).Error; err != nil {
+		return nil, fmt.Errorf("failed to reload updated campaign: %w", err)
+	}
+
+	return &campaign, nil
+}
+
+// ArchiveCampaign soft deletes a campaign
+func (s *campaignService) ArchiveCampaign(project string, campaignID uint) (*models.Campaign, error) {
+	var campaign models.Campaign
+
+	// Use a transaction to ensure atomicity
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		// Fetch the campaign for the given project and ID
+		if err := tx.Where("project = ? AND id = ?", project, campaignID).First(&campaign).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("campaign not found for project %s and ID %d: %w", project, campaignID, err)
+			}
+			return err
+		}
+
+		// Check if the campaign is already active
+		if campaign.Status == "archived" {
+			return fmt.Errorf("campaign is already archived")
+		}
+
+		// Update the campaign status
+		if err := tx.Model(&campaign).Update("status", "archived").Error; err != nil {
+			return fmt.Errorf("failed to archive the campaign: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Reload the campaign with associated events
+	if err := s.DB.Preload("Events").Where("project = ? AND id = ?", project, campaignID).First(&campaign).Error; err != nil {
+		return nil, fmt.Errorf("failed to reload updated campaign: %w", err)
+	}
 
 	return &campaign, nil
 }

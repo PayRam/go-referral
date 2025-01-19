@@ -9,23 +9,29 @@ import (
 // EventService handles operations related to events
 type EventService interface {
 	CreateEvent(project string, request request.CreateEventRequest) (*models.Event, error)
-	UpdateEvent(project, key string, req request.UpdateEventRequest) (*models.Event, error)
 	GetEvents(req request.GetEventsRequest) ([]models.Event, int64, error)
+	UpdateEvent(project, key string, req request.UpdateEventRequest) (*models.Event, error)
 }
 
 // CampaignService handles operations related to campaigns
 type CampaignService interface {
 	CreateCampaign(project string, req request.CreateCampaignRequest) (*models.Campaign, error)
 	GetCampaigns(req request.GetCampaignsRequest) ([]models.Campaign, int64, error)
+	GetTotalCampaigns(req request.GetCampaignsRequest) (int64, error)
 	UpdateCampaign(project string, id uint, req request.UpdateCampaignRequest) (*models.Campaign, error)
+	SetDefaultCampaign(project string, campaignID uint) (*models.Campaign, error)
+	RemoveDefaultCampaign(project string) (*models.Campaign, error)
+	PauseCampaign(project string, campaignID uint) (*models.Campaign, error)
+	ResumeCampaign(project string, campaignID uint) (*models.Campaign, error)
+	ArchiveCampaign(project string, campaignID uint) (*models.Campaign, error)
 }
 
 // ReferrerService handles operations related to referral codes
 type ReferrerService interface {
-	CreateReferrer(project, referenceID, code string, campaignIDs []uint) (*models.Referrer, error)
+	CreateReferrer(project string, req request.CreateReferrerRequest) (*models.Referrer, error)
 	GetReferrers(req request.GetReferrerRequest) ([]models.Referrer, int64, error)
-	UpdateCampaigns(project, referenceID string, campaignIDs []uint) (*models.Referrer, error)
 	GetTotalReferrers(req request.GetReferrerRequest) (int64, error)
+	UpdateReferrer(project, referenceID string, request request.UpdateReferrerRequest) (*models.Referrer, error)
 }
 
 // RefereeService handles operations related to referral codes
