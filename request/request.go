@@ -64,7 +64,7 @@ type UpdateEventRequest struct {
 type CreateCampaignRequest struct {
 	Name               string           `json:"name" binding:"required"`
 	RewardType         string           `json:"rewardType" binding:"required"` // e.g., "flat_fee", "percentage"
-	RewardValue        *decimal.Decimal `json:"rewardValue" binding:"required"`
+	RewardValue        decimal.Decimal  `json:"rewardValue" binding:"required"`
 	RewardCap          *decimal.Decimal `json:"rewardCap"`
 	InviteeRewardType  *string          `json:"inviteeRewardType"` // e.g., "flat_fee", "percentage"
 	InviteeRewardValue *decimal.Decimal `json:"inviteeRewardValue"`
