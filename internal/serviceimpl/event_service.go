@@ -6,6 +6,7 @@ import (
 	"github.com/PayRam/go-referral/models"
 	"github.com/PayRam/go-referral/request"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"regexp"
 )
 
@@ -65,7 +66,7 @@ func (s *eventService) CreateEvent(project string, request request.CreateEventRe
 	return event, nil
 }
 
-// UpdateEvent updates an existing event
+// UpdateEvent updates an existing event with row-level locking
 func (s *eventService) UpdateEvent(project, key string, req request.UpdateEventRequest) (*models.Event, error) {
 	if req.Name == nil && req.Description == nil {
 		return nil, errors.New("no update fields provided")
@@ -81,28 +82,38 @@ func (s *eventService) UpdateEvent(project, key string, req request.UpdateEventR
 
 	var event models.Event
 
-	// Fetch the event by key
-	if err := s.DB.First(&event, "project = ? AND key = ?", project, key).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("event not found with key: %s", key)
+	// Use a transaction to ensure atomicity and apply row-level locking
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		// Fetch the event by key with a row-level lock
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			First(&event, "project = ? AND key = ?", project, key).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("event not found with key: %s", key)
+			}
+			return err
 		}
+
+		// Prepare updates dynamically based on non-nil fields in the request
+		updates := map[string]interface{}{}
+		if req.Name != nil {
+			updates["name"] = *req.Name
+		}
+		if req.Description != nil {
+			updates["description"] = *req.Description
+		}
+
+		// Apply updates
+		if len(updates) > 0 {
+			if err := tx.Model(&event).Updates(updates).Error; err != nil {
+				return fmt.Errorf("failed to update event: %w", err)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
-	}
-
-	// Prepare updates dynamically based on non-nil fields in the request
-	updates := map[string]interface{}{}
-	if req.Name != nil {
-		updates["name"] = *req.Name
-	}
-	if req.Description != nil {
-		updates["description"] = *req.Description
-	}
-
-	// Apply updates
-	if len(updates) > 0 {
-		if err := s.DB.Model(&event).Updates(updates).Error; err != nil {
-			return nil, fmt.Errorf("failed to update event: %w", err)
-		}
 	}
 
 	return &event, nil

@@ -107,13 +107,25 @@ type UpdateCampaignRequest struct {
 }
 
 type CreateReferrerRequest struct {
-	ReferenceID string `json:"referenceID" binding:"required"`
-	Code        string `json:"code" binding:"required"`
-	CampaignIDs []uint `json:"campaignIDs"`
+	ReferenceID string  `json:"referenceID" binding:"required"`
+	Code        *string `json:"code"`
+	CampaignIDs []uint  `json:"campaignIDs"`
+}
+
+type CreateEventLogRequest struct {
+	EventKey    string           `json:"eventKey" binding:"required"`
+	ReferenceID string           `json:"referenceID" binding:"required"`
+	Amount      *decimal.Decimal `json:"amount"`
+	Data        *string          `json:"data"`
 }
 
 type UpdateReferrerRequest struct {
 	CampaignIDs []uint `json:"campaignIDs"`
+}
+
+type CreateRefereeRequest struct {
+	ReferenceID string `json:"referenceID" binding:"required"`
+	Code        string `json:"code" binding:"required"`
 }
 
 type GetEventsRequest struct {

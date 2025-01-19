@@ -2,15 +2,29 @@ package utils
 
 import (
 	"crypto/rand"
-	"encoding/hex"
+	"fmt"
 	"github.com/stretchr/testify/assert"
+	"math/big"
 	"testing"
 )
 
-func GenerateReferralCode() string {
-	b := make([]byte, 8) // 8 bytes = 16 characters
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
+const charset = "BF7CDXR0E3ZHPI1JK9L4N2OAQSFT5UVMW6Y8"
+
+// CreateReferralCode generates a secure random referral code of the specified length.
+func CreateReferralCode(length int) (string, error) {
+	if length <= 0 {
+		return "", fmt.Errorf("length must be greater than zero")
+	}
+
+	code := make([]byte, length)
+	for i := range code {
+		randomIndex, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		if err != nil {
+			return "", fmt.Errorf("failed to generate referral code: %w", err)
+		}
+		code[i] = charset[randomIndex.Int64()]
+	}
+	return string(code), nil
 }
 
 // AssertEqualNilable asserts equality for nilable values of any type.

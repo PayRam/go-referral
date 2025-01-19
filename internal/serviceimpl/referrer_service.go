@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"github.com/PayRam/go-referral/models"
 	"github.com/PayRam/go-referral/request"
+	"github.com/PayRam/go-referral/utils"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type referrerService struct {
@@ -20,9 +22,17 @@ func NewReferrerService(db *gorm.DB) *referrerService {
 
 func (s *referrerService) CreateReferrer(project string, req request.CreateReferrerRequest) (*models.Referrer, error) {
 	// Create the referrer
+	if req.Code == nil || *req.Code == "" {
+		code, err := utils.CreateReferralCode(7)
+		if err != nil {
+			return nil, fmt.Errorf("CreateReferrer: failed to generate referral code: %w", err)
+		}
+		req.Code = &code
+	}
+
 	referrer := &models.Referrer{
 		Project:     project,
-		Code:        req.Code,
+		Code:        *req.Code,
 		ReferenceID: req.ReferenceID,
 	}
 
@@ -100,13 +110,15 @@ func (s *referrerService) GetReferrers(req request.GetReferrerRequest) ([]models
 }
 
 func (s *referrerService) UpdateReferrer(project, referenceID string, request request.UpdateReferrerRequest) (*models.Referrer, error) {
-	// Use a database transaction to ensure atomicity
 	var updatedReferrer *models.Referrer
+
+	// Use a database transaction to ensure atomicity
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		var referrer models.Referrer
 
-		// Fetch the referrer for the given reference
-		if err := tx.Where("project = ? AND reference_id = ?", project, referenceID).
+		// Fetch the referrer for the given reference with a row-level lock
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("project = ? AND reference_id = ?", project, referenceID).
 			First(&referrer).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("referrer not found for project=%s and reference_id=%s", project, referenceID)

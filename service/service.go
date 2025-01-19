@@ -22,9 +22,7 @@ type CampaignService interface {
 	UpdateCampaign(project string, id uint, req request.UpdateCampaignRequest) (*models.Campaign, error)
 	SetDefaultCampaign(project string, campaignID uint) (*models.Campaign, error)
 	RemoveDefaultCampaign(project string, campaignID uint) (*models.Campaign, error)
-	PauseCampaign(project string, campaignID uint) (*models.Campaign, error)
-	ResumeCampaign(project string, campaignID uint) (*models.Campaign, error)
-	ArchiveCampaign(project string, campaignID uint) (*models.Campaign, error)
+	UpdateCampaignStatus(project string, campaignID uint, newStatus string) (*models.Campaign, error)
 }
 
 // ReferrerService handles operations related to referral codes
@@ -37,13 +35,13 @@ type ReferrerService interface {
 
 // RefereeService handles operations related to referral codes
 type RefereeService interface {
-	CreateReferee(project, code, referenceID string) (*models.Referee, error)
+	CreateReferee(project string, req request.CreateRefereeRequest) (*models.Referee, error)
 	GetReferees(req request.GetRefereeRequest) ([]models.Referee, int64, error)
 	GetTotalReferees(req request.GetRefereeRequest) (int64, error)
 }
 
 type EventLogService interface {
-	CreateEventLog(project, eventKey string, referenceID string, amount *decimal.Decimal, data *string) (*models.EventLog, error)
+	CreateEventLog(project string, req request.CreateEventLogRequest) (*models.EventLog, error)
 	GetEventLogs(req request.GetEventLogRequest) ([]models.EventLog, int64, error)
 }
 

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/PayRam/go-referral/models"
 	"github.com/PayRam/go-referral/request"
-	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"time"
 )
@@ -22,20 +21,20 @@ func NewEventLogService(db *gorm.DB) *eventLogService {
 }
 
 // CreateEventLog creates a new event log entry
-func (s *eventLogService) CreateEventLog(project, eventKey string, referenceID string, amount *decimal.Decimal, data *string) (*models.EventLog, error) {
+func (s *eventLogService) CreateEventLog(project string, req request.CreateEventLogRequest) (*models.EventLog, error) {
 	// Fetch the event by project and eventKey
 	var event models.Event
-	if err := s.DB.Where("project = ? AND key = ?", project, eventKey).First(&event).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch event with key '%s' for project '%s': %w", eventKey, project, err)
+	if err := s.DB.Where("project = ? AND key = ?", project, req.EventKey).First(&event).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch event with key '%s' for project '%s': %w", req.EventKey, project, err)
 	}
 
 	// Validate amount based on event type
 	if event.EventType == "payment" {
-		if amount == nil || amount.IsZero() {
+		if req.Amount == nil || req.Amount.IsZero() {
 			return nil, errors.New("amount must be greater than 0 for payment events")
 		}
 	} else {
-		if amount != nil {
+		if req.Amount != nil {
 			return nil, errors.New("amount must be nil for non-payment events")
 		}
 	}
@@ -43,11 +42,11 @@ func (s *eventLogService) CreateEventLog(project, eventKey string, referenceID s
 	// Create the event log
 	eventLog := &models.EventLog{
 		Project:     project,
-		EventKey:    eventKey,
-		ReferenceID: referenceID,
-		Amount:      amount,
+		EventKey:    req.EventKey,
+		ReferenceID: req.ReferenceID,
+		Amount:      req.Amount,
 		TriggeredAt: time.Now(),
-		Data:        data,
+		Data:        req.Data,
 		Status:      "pending",
 	}
 

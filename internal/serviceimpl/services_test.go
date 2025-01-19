@@ -86,12 +86,13 @@ func updateCampaign(t *testing.T, project string, campaignID uint, req request.U
 }
 
 func createReferrer(t *testing.T, project, referrerUser string, campaignIDs []uint) *models.Referrer {
-	code := utils.GenerateReferralCode()
+	code, err := utils.CreateReferralCode(7)
+	assert.NoError(t, err)
 	// Create a referrer
 	referrer, err := referralService.Referrers.CreateReferrer(
 		project,
 		request.CreateReferrerRequest{
-			Code:        code,
+			Code:        &code,
 			ReferenceID: referrerUser,
 			CampaignIDs: campaignIDs,
 		},
@@ -120,8 +121,10 @@ func createReferee(t *testing.T, project, code, refereeUser string) *models.Refe
 	// Create a Referee using the Referrer's code
 	referee, err := referralService.Referees.CreateReferee(
 		project,
-		code,        // Referrer code
-		refereeUser, // ReferrerReferenceID
+		request.CreateRefereeRequest{
+			Code:        code,
+			ReferenceID: refereeUser,
+		},
 	)
 	assert.NoError(t, err)
 	assert.NotNil(t, referee)
@@ -135,10 +138,12 @@ func triggerEvent(t *testing.T, project, eventKey, user string, data *string, am
 	// Create an EventLog for the Referee
 	eventLog, err := referralService.EventLogs.CreateEventLog(
 		project,
-		eventKey,
-		user,
-		amount,
-		data,
+		request.CreateEventLogRequest{
+			EventKey:    eventKey,
+			ReferenceID: user,
+			Amount:      amount,
+			Data:        data,
+		},
 	)
 	assert.NoError(t, err)
 	assert.NotNil(t, eventLog)
