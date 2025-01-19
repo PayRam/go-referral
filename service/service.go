@@ -10,10 +10,7 @@ import (
 type EventService interface {
 	CreateEvent(project string, request request.CreateEventRequest) (*models.Event, error)
 	UpdateEvent(project, key string, req request.UpdateEventRequest) (*models.Event, error)
-	GetAll(project string) ([]models.Event, error)
-	GetByKey(project, key string) (*models.Event, error)
-	GetByKeys(project string, keys []string) ([]models.Event, error)
-	SearchByName(project, name string) ([]models.Event, error)
+	GetEvents(req request.GetEventsRequest) ([]models.Event, int64, error)
 }
 
 // CampaignService handles operations related to campaigns
@@ -21,12 +18,6 @@ type CampaignService interface {
 	CreateCampaign(project string, req request.CreateCampaignRequest) (*models.Campaign, error)
 	GetCampaigns(req request.GetCampaignsRequest) ([]models.Campaign, int64, error)
 	UpdateCampaign(project string, id uint, req request.UpdateCampaignRequest) (*models.Campaign, error)
-	//UpdateCampaignEvents(project string, campaignID uint, eventKeys []string) (*models.Campaign, error)
-	SetDefaultCampaign(project string, campaignID uint) (*models.Campaign, error)
-	PauseCampaign(project string, campaignID uint) (*models.Campaign, error)
-	ResumeCampaign(project string, campaignID uint) (*models.Campaign, error)
-	DeleteCampaign(project string, campaignID uint) (bool, error)
-	GetTotalCampaigns(req request.GetCampaignsRequest) (int64, error)
 }
 
 // ReferrerService handles operations related to referral codes

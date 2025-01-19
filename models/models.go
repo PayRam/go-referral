@@ -17,18 +17,18 @@ type Campaign struct {
 	BaseModel
 	Project            string           `gorm:"size:100;not null;index"`
 	Name               string           `gorm:"size:255;not null;index"`
-	RewardType         string           `gorm:"size:50"`             // e.g., "flat_fee", "percentage"
-	RewardValue        *decimal.Decimal `gorm:""`                    // Percentage value or flat fee
-	RewardCap          *decimal.Decimal `gorm:"type:decimal(38,18)"` // Maximum reward for percentage type
-	InviteeRewardType  *string          `gorm:"size:50"`             // e.g., "flat_fee", "percentage"
-	InviteeRewardValue *decimal.Decimal `gorm:""`                    // Reward for invitee
-	InviteeRewardCap   *decimal.Decimal `gorm:"type:decimal(38,18)"` // Cap for invitee reward
-	Budget             *decimal.Decimal `gorm:"type:decimal(38,18)"` // Budget for the campaign
-	Description        *string          `gorm:"type:text"`           // Optional description
-	StartDate          *time.Time       `gorm:"not null;index"`      // Start date of the campaign
-	EndDate            *time.Time       `gorm:"not null;index"`      // End date of the campaign
-	IsActive           bool             `gorm:"default:true;index"`  // Active status
-	IsDefault          bool             `gorm:"default:false;index"` // Only one default campaign
+	RewardType         string           `gorm:"size:50"`                        // e.g., "flat_fee", "percentage"
+	RewardValue        *decimal.Decimal `gorm:""`                               // Percentage value or flat fee
+	RewardCap          *decimal.Decimal `gorm:"type:decimal(38,18)"`            // Maximum reward for percentage type
+	InviteeRewardType  *string          `gorm:"size:50"`                        // e.g., "flat_fee", "percentage"
+	InviteeRewardValue *decimal.Decimal `gorm:""`                               // Reward for invitee
+	InviteeRewardCap   *decimal.Decimal `gorm:"type:decimal(38,18)"`            // Cap for invitee reward
+	Budget             *decimal.Decimal `gorm:"type:decimal(38,18)"`            // Budget for the campaign
+	Description        *string          `gorm:"type:text"`                      // Optional description
+	StartDate          *time.Time       `gorm:"not null;index"`                 // Start date of the campaign
+	EndDate            *time.Time       `gorm:"not null;index"`                 // End date of the campaign
+	Status             string           `gorm:"size:50;default:'active';index"` // New field to track campaign status (e.g., 'active', 'paused', 'archived')
+	IsDefault          bool             `gorm:"default:false;index"`            // Only one default campaign
 
 	CampaignTypePerCustomer   string           `gorm:"size:50;not null;index"` // Campaign type: "one_time", "forever", "months_per_customer", "count_per_customer"
 	MaxOccurrencesPerCustomer *int64           `gorm:""`                       // 0 for unlimited
@@ -45,14 +45,11 @@ func (Campaign) TableName() string {
 // Event represents an action within a campaign that can trigger a reward
 type Event struct {
 	BaseModel
-	Project     string     `gorm:"size:100;not null;uniqueIndex:idx_event_project_key" seeder:"no-update"`
-	Key         string     `gorm:"size:100;not null;uniqueIndex:idx_event_project_key" seeder:"no-update"`
-	Name        string     `gorm:"size:255;not null;index" seeder:"no-update"`
-	EventType   string     `gorm:"size:100;not null;index" seeder:"no-update"`
-	Description *string    `gorm:"type:text" seeder:"no-update"`
-	CreatedAt   time.Time  `gorm:"autoCreateTime" seeder:"no-update"`
-	UpdatedAt   time.Time  `gorm:"autoUpdateTime" seeder:"no-update"`
-	DeletedAt   *time.Time `gorm:"index" json:"-" seeder:"no-update"`
+	Project     string  `gorm:"size:100;not null;uniqueIndex:idx_event_project_key" seeder:"no-update"`
+	Key         string  `gorm:"size:100;not null;uniqueIndex:idx_event_project_key" seeder:"no-update"`
+	Name        string  `gorm:"size:255;not null;index" seeder:"no-update"`
+	EventType   string  `gorm:"size:100;not null;index" seeder:"no-update"`
+	Description *string `gorm:"type:text" seeder:"no-update"`
 }
 
 func (Event) TableName() string {

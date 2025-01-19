@@ -22,8 +22,8 @@ var (
 func TestMain(m *testing.M) {
 	// Initialize shared test database
 	var err error
-	//db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	db, err = gorm.Open(sqlite.Open("/Users/sameer/Documents/test1.db"), &gorm.Config{})
+	db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	//db, err = gorm.Open(sqlite.Open("/Users/sameer/Documents/test1.db"), &gorm.Config{})
 	if err != nil {
 		panic("failed to initialize test database")
 	}

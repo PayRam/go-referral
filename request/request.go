@@ -95,7 +95,7 @@ type UpdateCampaignRequest struct {
 	Description        *string          `json:"description"`
 	StartDate          *time.Time       `json:"startDate"`
 	EndDate            *time.Time       `json:"endDate"`
-	IsActive           *bool            `json:"isActive"`
+	Status             *string          `json:"status"`
 	IsDefault          *bool            `json:"isDefault"` // Only one default campaign
 
 	CampaignTypePerCustomer   *string          `json:"type" binding:"required"` // Campaign type: "one_time", "forever", "months_per_customer", "count_per_customer"
@@ -106,11 +106,20 @@ type UpdateCampaignRequest struct {
 	EventKeys []string `json:"eventKeys"`
 }
 
+type GetEventsRequest struct {
+	Project              *string              `json:"project"`              // Filter by name
+	ID                   *uint                `json:"id"`                   // Filter by ID
+	Key                  *string              `json:"key"`                  // Filter by name
+	Name                 *string              `json:"name"`                 // Filter by name
+	EventType            *string              `json:"eventType"`            // Filter by name
+	PaginationConditions PaginationConditions `json:"paginationConditions"` // Embedded pagination and sorting struct
+}
+
 type GetCampaignsRequest struct {
 	Project              *string              `json:"project"`   // Filter by name
 	ID                   *uint                `json:"id"`        // Filter by ID
 	Name                 *string              `json:"name"`      // Filter by name
-	IsActive             *bool                `json:"isActive"`  // Filter by active status
+	Status               *string              `json:"status"`    // Filter by active status
 	IsDefault            *bool                `json:"isDefault"` // Filter by active status
 	StartDateMin         *time.Time           `json:"startDateMin"`
 	StartDateMax         *time.Time           `json:"startDateMax"`

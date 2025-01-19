@@ -108,66 +108,44 @@ func (s *eventService) UpdateEvent(project, key string, req request.UpdateEventR
 	return &event, nil
 }
 
-func (s *eventService) GetAll(project string) ([]models.Event, error) {
+// GetEvents retrieves events based on dynamic conditions
+func (s *eventService) GetEvents(req request.GetEventsRequest) ([]models.Event, int64, error) {
 	var events []models.Event
+	var count int64
 
-	// Fetch all events for the specified project
-	if err := s.DB.Where("project = ?", project).Find(&events).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch events for project %s: %w", project, err)
+	// Start query
+	query := s.DB.Model(&models.Event{})
+
+	// Apply filters
+	if req.Project != nil {
+		query = query.Where("project = ?", *req.Project)
+	}
+	if req.ID != nil {
+		query = query.Where("id = ?", *req.ID)
+	}
+	if req.Key != nil {
+		query = query.Where("key = ?", *req.Key)
+	}
+	if req.Name != nil {
+		query = query.Where("name LIKE ?", "%"+*req.Name+"%")
+	}
+	if req.EventType != nil {
+		query = query.Where("event_type = ?", *req.EventType)
 	}
 
-	return events, nil
-}
-
-func (s *eventService) GetByKey(project, key string) (*models.Event, error) {
-	var event models.Event
-
-	// Fetch the event by key
-	if err := s.DB.First(&event, "project = ? AND key = ?", project, key).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("event not found with key: %s", key)
-		}
-		return nil, err
+	// Calculate total count before applying pagination
+	countQuery := query
+	if err := countQuery.Count(&count).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count events: %w", err)
 	}
 
-	return &event, nil
-}
+	// Apply pagination conditions
+	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
-func (s *eventService) GetByKeys(project string, keys []string) ([]models.Event, error) {
-	var events []models.Event
-
-	// Fetch the events by keys
-	if err := s.DB.Where("project = ? AND key IN ?", project, keys).Find(&events).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch events for keys %v: %w", keys, err)
+	// Fetch records with pagination
+	if err := query.Find(&events).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to fetch events: %w", err)
 	}
 
-	// Check if all keys are found
-	if len(events) != len(keys) {
-		foundKeys := make(map[string]bool)
-		for _, event := range events {
-			foundKeys[event.Key] = true
-		}
-
-		missingKeys := []string{}
-		for _, key := range keys {
-			if !foundKeys[key] {
-				missingKeys = append(missingKeys, key)
-			}
-		}
-
-		return nil, fmt.Errorf("some keys were not found: %v", missingKeys)
-	}
-
-	return events, nil
-}
-
-func (s *eventService) SearchByName(project, name string) ([]models.Event, error) {
-	var events []models.Event
-
-	// Fetch events by name using a case-insensitive search with NOCASE
-	if err := s.DB.Where("project = ? AND name LIKE ? COLLATE NOCASE", project, "%"+name+"%").Find(&events).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch events by name: %w", err)
-	}
-
-	return events, nil
+	return events, count, nil
 }
