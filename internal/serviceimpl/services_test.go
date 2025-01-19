@@ -1,7 +1,6 @@
 package serviceimpl_test
 
 import (
-	"fmt"
 	go_referral "github.com/PayRam/go-referral"
 	"github.com/PayRam/go-referral/models"
 	"github.com/PayRam/go-referral/request"
@@ -20,8 +19,6 @@ var (
 	referralService *go_referral.ReferralService
 )
 
-var project = "reftest"
-
 func TestMain(m *testing.M) {
 	// Initialize shared test database
 	var err error
@@ -37,130 +34,65 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-func setupEvents(t *testing.T) {
-
-	event1, err := referralService.Events.CreateEvent(project, "signup-event", "User Signup", nil, "simple")
-	assert.NoError(t, err)
-	assert.NotNil(t, event1)
-	assert.Equal(t, "User Signup", event1.Name)
-
-	event2, err := referralService.Events.CreateEvent(project, "payment-event", "Payment Made", nil, "payment")
-	assert.NoError(t, err)
-	assert.NotNil(t, event2)
-	assert.Equal(t, "Payment Made", event2.Name)
-
-	event3, err := referralService.Events.UpdateEvent(project, "payment-event", request.UpdateEventRequest{
-		Name: utils.StringPtr("Payment Done"),
-	})
-	assert.NoError(t, err)
-	assert.NotNil(t, event3)
-	assert.Equal(t, "Payment Done", event3.Name)
-
-	event4, err := referralService.Events.SearchByName(project, "Payment")
-	if err != nil {
-		return
-	}
-	assert.NoError(t, err)
-	assert.NotNil(t, event4[0])
-	assert.Equal(t, "Payment Done", event4[0].Name)
+func createEvent(t *testing.T, project string, req request.CreateEventRequest) *models.Event {
+	event, err := referralService.Events.CreateEvent(project, req)
+	assert.NoError(t, err, "failed to create event")
+	assert.NotNil(t, event)
+	assert.Equal(t, req.Key, event.Key)
+	assert.Equal(t, req.Name, event.Name)
+	assert.Equal(t, req.EventType, event.EventType)
+	utils.AssertEqualNilable(t, req.Description, event.Description, "Description values should match")
+	return event
 }
 
-func setupCampaign(t *testing.T) {
-	events, err := referralService.Events.GetAll(project)
-	if err != nil {
-		return
+func updateEvent(t *testing.T, project, key string, req request.UpdateEventRequest) *models.Event {
+	event, err := referralService.Events.UpdateEvent(project, key, req)
+	assert.NoError(t, err, "failed to update event")
+	assert.NotNil(t, event)
+	if req.Name != nil {
+		assert.Equal(t, *req.Name, event.Name)
 	}
-
-	// Create a campaign using event keys
-	startDate := time.Now()
-	endDate := startDate.AddDate(0, 1, 0) // One month from start date
-	budget := decimal.NewFromFloat(1000.00)
-	campaign, err := referralService.Campaigns.CreateCampaign(
-		project,
-		"New User Campaign",
-		"Campaign for new user signups and payments",
-		startDate,
-		endDate,
-		nil,
-		nil, nil, nil, nil,
-		&budget,
-	)
-	assert.NoError(t, err)
-	assert.NotNil(t, campaign)
-	assert.Equal(t, "New User Campaign", campaign.Name)
-
-	var rewardType = "percentage"
-	var rewardValue = 10.0
-	var inviteeRewardType = "flat_fee"
-	var inviteeRewardValue = 100.0
-	var maxOccurrences = uint(0)
-	var validityDays = uint(60)
-
-	var updateCampaignRequest = request.UpdateCampaignRequest{
-		RewardType:         &rewardType,
-		RewardValue:        &rewardValue,
-		InviteeRewardType:  &inviteeRewardType,
-		InviteeRewardValue: &inviteeRewardValue,
-		MaxOccurrences:     &maxOccurrences,
-		ValidityDays:       &validityDays,
+	if req.Description != nil {
+		utils.AssertEqualNilable(t, req.Description, event.Description, "Description values should match")
 	}
-
-	campaign, err = referralService.Campaigns.UpdateCampaign(
-		project,
-		campaign.ID,
-		updateCampaignRequest,
-	)
-	assert.NoError(t, err)
-	assert.NotNil(t, campaign)
-	assert.Equal(t, "percentage", *campaign.RewardType)
-
-	campaign, err = referralService.Campaigns.UpdateCampaignEvents(
-		project,
-		campaign.ID,
-		events,
-	)
-	assert.NoError(t, err)
-	assert.NotNil(t, campaign)
-
-	// Verify associations
-	var campaignEvents []models.CampaignEvent
-	err = db.Where("campaign_id = ?", campaign.ID).Find(&campaignEvents).Error
-	assert.NoError(t, err)
-	assert.Equal(t, 2, len(campaignEvents))
-
-	name := "User Campaign"
-	req := request.GetCampaignsRequest{
-		Project: &project,
-		Name:    &name,
-	}
-
-	campaigns, _, err := referralService.Campaigns.GetCampaigns(req)
-	if err != nil {
-		return
-	}
-	assert.NoError(t, err)
-	assert.NotNil(t, campaigns[0])
-	assert.Equal(t, "New User Campaign", campaigns[0].Name)
+	return event
 }
 
-func setupReferrer(t *testing.T) {
-	id := uint(1)
-	req := request.GetCampaignsRequest{
-		ID: &id,
-	}
+func createCampaign(t *testing.T, project string, req request.CreateCampaignRequest) *models.Campaign {
+	campaign, err := referralService.Campaigns.CreateCampaign(project, req)
+	assert.NoError(t, err, "failed to create campaign")
+	assert.NotNil(t, campaign)
+	assert.Equal(t, req.Name, campaign.Name)
+	assert.Equal(t, req.RewardType, campaign.RewardType)
+	assert.Equal(t, req.IsDefault, campaign.IsDefault)
+	assert.Equal(t, req.CampaignTypePerCustomer, campaign.CampaignTypePerCustomer)
+	assert.Equal(t, len(req.EventKeys), len(campaign.Events))
+	return campaign
+}
 
-	campaigns, _, err := referralService.Campaigns.GetCampaigns(req)
+func updateCampaign(t *testing.T, project string, campaignID uint, req request.UpdateCampaignRequest) *models.Campaign {
+	campaign, err := referralService.Campaigns.UpdateCampaign(project, campaignID, req)
 	if err != nil {
-		return
+		log.Printf("failed to create campaign: %v", err)
 	}
-	campaign := campaigns[0]
+	assert.NoError(t, err)
+	assert.NotNil(t, campaign)
+	utils.AssertEqualIfExpectedNotNil(t, req.Name, campaign.Name, "Name values should match")
+	utils.AssertEqualIfExpectedNotNil(t, req.RewardType, campaign.RewardType, "RewardType values should match")
+	utils.AssertEqualIfExpectedNotNil(t, req.IsDefault, campaign.IsDefault, "IsDefault values should match")
+	utils.AssertEqualIfExpectedNotNil(t, req.CampaignTypePerCustomer, campaign.CampaignTypePerCustomer, "CampaignTypePerCustomer values should match")
+	assert.Equal(t, len(req.EventKeys), len(campaign.Events))
+	return campaign
+}
+
+func createReferrer(t *testing.T, project, referrerUser string, campaignIDs []uint) *models.Referrer {
 	code := utils.GenerateReferralCode()
 	// Create a referrer
 	referrer, err := referralService.Referrers.CreateReferrer(
 		project,
-		"user-123",          // ReferrerReferenceID
-		code,                // Unique code
-		[]uint{campaign.ID}, // CampaignID
+		referrerUser, // ReferrerReferenceID
+		code,         // Unique code
+		campaignIDs,  // CampaignID
 	)
 	assert.NoError(t, err)
 	assert.NotNil(t, referrer)
@@ -168,153 +100,376 @@ func setupReferrer(t *testing.T) {
 	// Validate the referrer
 	assert.Equal(t, code, referrer.Code)
 	assert.Equal(t, project, referrer.Project)
-	assert.Equal(t, "user-123", referrer.ReferenceID)
-	assert.Equal(t, campaign.ID, referrer.Campaigns[0].ID)
-
-	// Fetch and validate the referrer from the database
-	var dbReferrer models.Referrer
-	err = db.Preload("Campaigns").Where("id = ?", referrer.ID).First(&dbReferrer).Error
-	assert.NoError(t, err)
-	assert.Equal(t, code, dbReferrer.Code)
-	assert.Equal(t, project, dbReferrer.Project)
-	assert.Equal(t, "user-123", dbReferrer.ReferenceID)
-	assert.Equal(t, campaign.ID, dbReferrer.Campaigns[0].ID)
+	assert.Equal(t, referrerUser, referrer.ReferenceID)
+	assert.Equal(t, len(campaignIDs), len(referrer.Campaigns))
+	return referrer
 }
 
-func setupReferee(t *testing.T) {
-	referenceID := "user-123"
+func createReferee(t *testing.T, project, code, refereeUser string) *models.Referee {
 	req := request.GetReferrerRequest{
-		Project:     &project,
-		ReferenceID: &referenceID,
+		Project: &project,
+		Code:    &code,
 	}
 
 	referrers, _, err := referralService.Referrers.GetReferrers(req)
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(referrers))
+	assert.Equal(t, 1, len(referrers), "expected exactly 1 referrer")
 
-	referrer := referrers[0]
 	// Create a Referee using the Referrer's code
 	referee, err := referralService.Referees.CreateReferee(
 		project,
-		referrer.Code, // Referrer code
-		"user-456",    // ReferrerReferenceID
+		code,        // Referrer code
+		refereeUser, // ReferrerReferenceID
 	)
 	assert.NoError(t, err)
 	assert.NotNil(t, referee)
-
-	// Validate the Referee
-	assert.Equal(t, referrer.ID, referee.ReferrerID)
+	assert.Equal(t, referrers[0].ID, referee.ReferrerID)
 	assert.Equal(t, project, referee.Project)
-	assert.Equal(t, "user-456", referee.ReferenceID)
-
-	// Fetch and validate the Referee from the database
-	var dbReferee models.Referee
-	err = db.Preload("Referrer").Where("id = ?", referee.ID).First(&dbReferee).Error
-	assert.NoError(t, err)
-	assert.Equal(t, referrer.ID, dbReferee.ReferrerID)
-	assert.Equal(t, project, dbReferee.Project)
-	assert.Equal(t, "user-456", dbReferee.ReferenceID)
-	assert.Equal(t, referrer.Code, dbReferee.Referrer.Code)
+	assert.Equal(t, refereeUser, referee.ReferenceID)
+	return referee
 }
 
-func TestCreateReferee(t *testing.T) {
-	setupEvents(t)   // Ensure events exist
-	setupCampaign(t) // Ensure campaign exists
-	setupReferrer(t)
-	setupReferee(t)
+func triggerEvent(t *testing.T, project, eventKey, user string, data *string, amount *decimal.Decimal) (*models.EventLog, error) {
+	// Create an EventLog for the Referee
+	eventLog, err := referralService.EventLogs.CreateEventLog(
+		project,
+		eventKey,
+		user,
+		amount,
+		data,
+	)
+	assert.NoError(t, err)
+	assert.NotNil(t, eventLog)
 
-	_, err := triggerSignupEvent(t)
-	_, err = triggerPaymentEvent(t)
+	// Verify the EventLog is created correctly
+	assert.Equal(t, project, eventLog.Project)
+	assert.Equal(t, eventKey, eventLog.EventKey)
+	assert.Equal(t, user, eventLog.ReferenceID)
+	if data == nil && eventLog.Data == nil {
+		assert.True(t, true, "Both data and eventLog.Data are nil")
+	} else if data != nil && eventLog.Data != nil {
+		assert.Equal(t, *data, *eventLog.Data, "Data values should match")
+	} else {
+		t.Errorf("One of data or eventLog.Data is nil while the other is not")
+	}
+
+	if amount == nil && eventLog.Amount == nil {
+		assert.True(t, true, "Both amount and eventLog.Amount are nil")
+	} else if amount != nil && eventLog.Amount != nil {
+		assert.Equal(t, *amount, *eventLog.Amount, "Amount values should match")
+	} else {
+		t.Errorf("One of amount or eventLog.Amount is nil while the other is not")
+	}
+	assert.Equal(t, "pending", eventLog.Status)
+
+	// Verify it exists in the database
+	var retrievedEventLog models.EventLog
+	err = db.First(&retrievedEventLog, eventLog.ID).Error
+	assert.NoError(t, err)
+	assert.Equal(t, eventLog.ID, retrievedEventLog.ID)
+
+	return eventLog, err
+}
+
+func TestOneTimeCampaign(t *testing.T) {
+	project := "onetimeproject"
+	referrerUser := "user-123"
+	refereeUser := "user-456"
+	event := createEvent(t, project, request.CreateEventRequest{
+		Key:       "test-event",
+		Name:      "Test Event",
+		EventType: "payment",
+	})
+
+	event = updateEvent(t, project, "test-event", request.UpdateEventRequest{
+		Name: utils.StringPtr("Test Done"),
+	})
+
+	// Create a campaign using event keys
+	startDate := time.Now()
+	endDate := startDate.AddDate(0, 1, 0) // One month from start date
+	budget := decimal.NewFromFloat(100.00)
+	description := "Campaign for new user signups and payments"
+	rewardValue := decimal.NewFromFloat(10.0)
+	var inviteeRewardType = "flat_fee"
+	var inviteeRewardValue = decimal.NewFromFloat(40.0)
+	//var inviteeRewardCap = decimal.NewFromFloat(1000.0)
+
+	campaign := createCampaign(t, project, request.CreateCampaignRequest{
+		Name:                    "New User Campaign",
+		RewardType:              "percentage",
+		RewardValue:             &rewardValue,
+		StartDate:               &startDate,
+		EndDate:                 &endDate,
+		Description:             &description,
+		Budget:                  &budget,
+		IsDefault:               true,
+		CampaignTypePerCustomer: "one_time",
+		InviteeRewardType:       &inviteeRewardType,
+		InviteeRewardValue:      &inviteeRewardValue,
+
+		EventKeys: []string{event.Key},
+	})
+
+	event1 := createEvent(t, project, request.CreateEventRequest{
+		Key:       "signup-event",
+		Name:      "User Signup",
+		EventType: "simple",
+	})
+	event2 := createEvent(t, project, request.CreateEventRequest{
+		Key:       "payment-event",
+		Name:      "Payment Made",
+		EventType: "payment",
+	})
+
+	campaign = updateCampaign(t, project, campaign.ID, request.UpdateCampaignRequest{
+		Name:      utils.StringPtr("New User Campaign Updated"),
+		EventKeys: []string{event1.Key, event2.Key},
+	})
+
+	referrer := createReferrer(t, project, referrerUser, []uint{campaign.ID})
+
+	referee := createReferee(t, project, referrer.Code, refereeUser)
+
+	amount := decimal.NewFromFloat(100.50)
+	_, err := triggerEvent(t, project, "signup-event", refereeUser, nil, nil)
+	_, err = triggerEvent(t, project, "signup-event", refereeUser, nil, nil)
+	_, err = triggerEvent(t, project, "payment-event", refereeUser, utils.StringPtr(`{"transactionId": "12345"}`), &amount)
+	_, err = triggerEvent(t, project, "payment-event", refereeUser, utils.StringPtr(`{"transactionId": "12345"}`), &amount)
+
+	err = referralService.Worker.ProcessPendingEvents()
+	if err != nil {
+		log.Fatalf("****************failed to process pending events: %v", err)
+	}
+	assert.NoError(t, err)
+
+	req := request.GetRewardRequest{
+		Project:             &project,
+		ReferrerReferenceID: &referrerUser,
+		PaginationConditions: request.PaginationConditions{
+			SortBy: utils.StringPtr("id"),
+			Order:  utils.StringPtr("asc"),
+		},
+	}
+
+	rewards, count, err := referralService.RewardService.GetRewards(req)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(1), count)
+
+	expectedReward := decimal.NewFromFloat(10.05)
+
+	assert.Equal(t, project, rewards[0].Project)
+	assert.Equal(t, campaign.ID, rewards[0].CampaignID)
+	assert.Equal(t, referee.ID, rewards[0].RefereeID)
+	assert.Equal(t, refereeUser, rewards[0].RefereeReferenceID)
+	assert.Equal(t, referrer.ID, rewards[0].ReferrerID)
+	assert.Equal(t, referrerUser, rewards[0].ReferrerReferenceID)
+	assert.Equal(t, "pending", rewards[0].Status)
+	assert.Equal(t, expectedReward.String(), rewards[0].Amount.String())
+
+	elreq := request.GetEventLogRequest{
+		Project:     &project,
+		ReferenceID: &refereeUser,
+		PaginationConditions: request.PaginationConditions{
+			SortBy: utils.StringPtr("id"),
+			Order:  utils.StringPtr("asc"),
+		},
+	}
+
+	eventLogs, count, err := referralService.EventLogs.GetEventLogs(elreq)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(4), count)
+
+	assert.Equal(t, rewards[0].ID, eventLogs[0].RewardID)
+	assert.Equal(t, uint(0), eventLogs[1].RewardID)
+	assert.Equal(t, rewards[0].ID, eventLogs[2].RewardID)
+	assert.Equal(t, uint(0), eventLogs[3].RewardID)
+
+}
+
+func TestRecurringCampaignWithRewardCapAndLimitedBudget(t *testing.T) {
+	project := "recurringproject"
+	referrerUser := "user-123"
+	refereeUser := "user-456"
+	event1 := createEvent(t, project, request.CreateEventRequest{
+		Key:       "payment-recurring-event",
+		Name:      "Payment Recurring Event",
+		EventType: "payment",
+	})
+
+	// Create a campaign using event keys
+	startDate := time.Now()
+	endDate := startDate.AddDate(0, 1, 0) // One month from start date
+	budget := decimal.NewFromFloat(30.00)
+	description := "Campaign for new user signups and payments"
+	rewardValue := decimal.NewFromFloat(8.49)
+	rewardCap := decimal.NewFromFloat(15.00)
+	//var inviteeRewardCap = decimal.NewFromFloat(1000.0)
+	maxOccurrencesPerCustomer := int64(10)
+	campaign := createCampaign(t, project, request.CreateCampaignRequest{
+		Name:                      "New User Campaign",
+		RewardType:                "percentage",
+		RewardValue:               &rewardValue,
+		RewardCap:                 &rewardCap,
+		StartDate:                 &startDate,
+		EndDate:                   &endDate,
+		Description:               &description,
+		Budget:                    &budget,
+		IsDefault:                 true,
+		CampaignTypePerCustomer:   "count_per_customer",
+		MaxOccurrencesPerCustomer: &maxOccurrencesPerCustomer,
+
+		EventKeys: []string{event1.Key},
+	})
+
+	referrer := createReferrer(t, project, referrerUser, []uint{campaign.ID})
+
+	referee := createReferee(t, project, referrer.Code, refereeUser)
+
+	amount1 := decimal.NewFromFloat(150.50)
+	amount2 := decimal.NewFromFloat(330.50)
+	amount3 := decimal.NewFromFloat(430.50)
+	//_, err := triggerEvent(t, project, "signup-event", refereeUser, nil, nil)
+	//_, err = triggerEvent(t, project, "signup-event", refereeUser, nil, nil)
+	_, err := triggerEvent(t, project, "payment-recurring-event", refereeUser, utils.StringPtr(`{"transactionId": "12345"}`), &amount1)
+	_, err = triggerEvent(t, project, "payment-recurring-event", refereeUser, utils.StringPtr(`{"transactionId": "12345"}`), &amount2)
+	_, err = triggerEvent(t, project, "payment-recurring-event", refereeUser, utils.StringPtr(`{"transactionId": "12345"}`), &amount3)
 
 	err = referralService.Worker.ProcessPendingEvents()
 	assert.NoError(t, err)
 
-	// Fetch all rewards
-	var rewards []models.Reward
-	if err := db.Find(&rewards).Error; err != nil {
-		log.Fatalf("failed to fetch rewards: %v", err)
+	req := request.GetRewardRequest{
+		Project:             &project,
+		ReferrerReferenceID: &referrerUser,
+		PaginationConditions: request.PaginationConditions{
+			SortBy: utils.StringPtr("id"),
+			Order:  utils.StringPtr("asc"),
+		},
 	}
 
-	// Print each reward
-	for _, reward := range rewards {
-		fmt.Printf("Project: %s\n", reward.Project)
-		fmt.Printf("Reward ID: %d\n", reward.ID)
-		fmt.Printf("CampaignID: %d\n", reward.CampaignID)
-		fmt.Printf("RefereeID: %d\n", reward.RefereeID)
-		fmt.Printf("ReferrerReferenceID: %s\n", reward.ReferrerReferenceID)
-		fmt.Printf("Amount: %s\n", reward.Amount.String())
-		fmt.Printf("Status: %s\n", reward.Status)
-		if reward.Reason != nil {
-			fmt.Printf("Reason: %s\n", *reward.Reason)
-		} else {
-			fmt.Println("Reason: None")
-		}
-		fmt.Println("--------------------------")
+	rewards, count, err := referralService.RewardService.GetRewards(req)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), count)
+
+	expectedReward := decimal.NewFromFloat(12.77745) //27.77745
+	expectedReward2 := decimal.NewFromFloat(15)      //27.77745
+
+	assert.Equal(t, project, rewards[0].Project)
+	assert.Equal(t, campaign.ID, rewards[0].CampaignID)
+	assert.Equal(t, referee.ID, rewards[0].RefereeID)
+	assert.Equal(t, refereeUser, rewards[0].RefereeReferenceID)
+	assert.Equal(t, referrer.ID, rewards[0].ReferrerID)
+	assert.Equal(t, referrerUser, rewards[0].ReferrerReferenceID)
+	assert.Equal(t, "pending", rewards[0].Status)
+	assert.Equal(t, expectedReward.String(), rewards[0].Amount.String())
+	assert.Equal(t, expectedReward2.String(), rewards[1].Amount.String())
+
+	elreq := request.GetEventLogRequest{
+		Project:     &project,
+		ReferenceID: &refereeUser,
+		PaginationConditions: request.PaginationConditions{
+			SortBy: utils.StringPtr("id"),
+			Order:  utils.StringPtr("asc"),
+		},
 	}
 
+	eventLogs, count, err := referralService.EventLogs.GetEventLogs(elreq)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(3), count)
+
+	assert.Equal(t, rewards[0].ID, eventLogs[0].RewardID)
+	assert.Equal(t, rewards[1].ID, eventLogs[1].RewardID)
 }
 
-func triggerSignupEvent(t *testing.T) (*models.EventLog, error) {
-	// Create an EventLog for the Referee
-	eventKey := "signup-event"
-	amount := decimal.NewFromFloat(100.50)
-	data := `{"transactionId": "12345"}`
-	user := "user-456"
-	eventLog, err := referralService.EventLogs.CreateEventLog(
-		project,
-		eventKey,
-		user,
-		&amount,
-		&data,
-	)
+func TestRecurringCampaignWithMaxOccurrencesPerCustomer(t *testing.T) {
+	project := "recumaxoccurrenceproject"
+	referrerUser := "user-123"
+	refereeUser := "user-456"
+	event1 := createEvent(t, project, request.CreateEventRequest{
+		Key:       "payment-recurring-event",
+		Name:      "Payment Recurring Event",
+		EventType: "payment",
+	})
+
+	// Create a campaign using event keys
+	startDate := time.Now()
+	endDate := startDate.AddDate(0, 1, 0) // One month from start date
+	budget := decimal.NewFromFloat(3000.00)
+	description := "Campaign for new user signups and payments"
+	rewardValue := decimal.NewFromFloat(12.34)
+	//rewardCap := decimal.NewFromFloat(15.00)
+	//var inviteeRewardCap = decimal.NewFromFloat(1000.0)
+	maxOccurrencesPerCustomer := int64(2)
+	campaign := createCampaign(t, project, request.CreateCampaignRequest{
+		Name:        "New User Campaign",
+		RewardType:  "percentage",
+		RewardValue: &rewardValue,
+		//RewardCap:                 &rewardCap,
+		StartDate:                 &startDate,
+		EndDate:                   &endDate,
+		Description:               &description,
+		Budget:                    &budget,
+		IsDefault:                 true,
+		CampaignTypePerCustomer:   "count_per_customer",
+		MaxOccurrencesPerCustomer: &maxOccurrencesPerCustomer,
+
+		EventKeys: []string{event1.Key},
+	})
+
+	referrer := createReferrer(t, project, referrerUser, []uint{campaign.ID})
+
+	referee := createReferee(t, project, referrer.Code, refereeUser)
+
+	amount1 := decimal.NewFromFloat(250.50)
+	amount2 := decimal.NewFromFloat(1510.74565)
+	amount3 := decimal.NewFromFloat(1430.346)
+	_, err := triggerEvent(t, project, "payment-recurring-event", refereeUser, utils.StringPtr(`{"transactionId": "12345"}`), &amount1)
+	_, err = triggerEvent(t, project, "payment-recurring-event", refereeUser, utils.StringPtr(`{"transactionId": "12345"}`), &amount2)
+	_, err = triggerEvent(t, project, "payment-recurring-event", refereeUser, utils.StringPtr(`{"transactionId": "12345"}`), &amount3)
+
+	err = referralService.Worker.ProcessPendingEvents()
 	assert.NoError(t, err)
-	assert.NotNil(t, eventLog)
 
-	// Verify the EventLog is created correctly
-	assert.Equal(t, project, eventLog.Project)
-	assert.Equal(t, eventKey, eventLog.EventKey)
-	assert.Equal(t, user, eventLog.ReferenceID)
-	assert.Equal(t, data, *eventLog.Data)
-	assert.Equal(t, "pending", eventLog.Status)
+	req := request.GetRewardRequest{
+		Project:             &project,
+		ReferrerReferenceID: &referrerUser,
+		PaginationConditions: request.PaginationConditions{
+			SortBy: utils.StringPtr("id"),
+			Order:  utils.StringPtr("asc"),
+		},
+	}
 
-	// Verify it exists in the database
-	var retrievedEventLog models.EventLog
-	err = db.First(&retrievedEventLog, eventLog.ID).Error
+	rewards, count, err := referralService.RewardService.GetRewards(req)
 	assert.NoError(t, err)
-	assert.Equal(t, eventLog.ID, retrievedEventLog.ID)
+	assert.Equal(t, int64(2), count)
 
-	return eventLog, err
-}
+	expectedReward := decimal.NewFromFloat(30.9117)       //27.77745
+	expectedReward2 := decimal.NewFromFloat(186.42601321) //27.77745
 
-func triggerPaymentEvent(t *testing.T) (*models.EventLog, error) {
-	// Create an EventLog for the Referee
-	eventKey := "payment-event"
-	amount := decimal.NewFromFloat(100.50)
-	data := `{"transactionId": "12345"}`
-	user := "user-456"
-	eventLog, err := referralService.EventLogs.CreateEventLog(
-		project,
-		eventKey,
-		user,
-		&amount,
-		&data,
-	)
+	assert.Equal(t, project, rewards[0].Project)
+	assert.Equal(t, campaign.ID, rewards[0].CampaignID)
+	assert.Equal(t, referee.ID, rewards[0].RefereeID)
+	assert.Equal(t, refereeUser, rewards[0].RefereeReferenceID)
+	assert.Equal(t, referrer.ID, rewards[0].ReferrerID)
+	assert.Equal(t, referrerUser, rewards[0].ReferrerReferenceID)
+	assert.Equal(t, "pending", rewards[0].Status)
+	assert.Equal(t, expectedReward.String(), rewards[0].Amount.String())
+	assert.Equal(t, expectedReward2.String(), rewards[1].Amount.String())
+
+	elreq := request.GetEventLogRequest{
+		Project:     &project,
+		ReferenceID: &refereeUser,
+		PaginationConditions: request.PaginationConditions{
+			SortBy: utils.StringPtr("id"),
+			Order:  utils.StringPtr("asc"),
+		},
+	}
+
+	eventLogs, count, err := referralService.EventLogs.GetEventLogs(elreq)
 	assert.NoError(t, err)
-	assert.NotNil(t, eventLog)
+	assert.Equal(t, int64(3), count)
 
-	// Verify the EventLog is created correctly
-	assert.Equal(t, project, eventLog.Project)
-	assert.Equal(t, eventKey, eventLog.EventKey)
-	assert.Equal(t, user, eventLog.ReferenceID)
-	assert.Equal(t, amount, *eventLog.Amount)
-	assert.Equal(t, data, *eventLog.Data)
-	assert.Equal(t, "pending", eventLog.Status)
-
-	// Verify it exists in the database
-	var retrievedEventLog models.EventLog
-	err = db.First(&retrievedEventLog, eventLog.ID).Error
-	assert.NoError(t, err)
-	assert.Equal(t, eventLog.ID, retrievedEventLog.ID)
-
-	return eventLog, err
+	assert.Equal(t, rewards[0].ID, eventLogs[0].RewardID)
+	assert.Equal(t, rewards[1].ID, eventLogs[1].RewardID)
+	//assert.Equal(t, rewards[1].ID, eventLogs[1].RewardID)
 }

@@ -37,6 +37,7 @@ func (s *referrerService) CreateReferrer(project, referenceID, code string, camp
 		if len(campaignIDs) > 0 {
 			for _, campaignID := range campaignIDs {
 				association := &models.ReferrerCampaign{
+					Project:    project,
 					ReferrerID: referrer.ID,
 					CampaignID: campaignID,
 				}
@@ -121,6 +122,7 @@ func (s *referrerService) UpdateCampaigns(project, referenceID string, campaignI
 		// Add new campaign associations
 		for _, campaignID := range campaignIDs {
 			association := &models.ReferrerCampaign{
+				Project:    project,
 				ReferrerID: referrer.ID,
 				CampaignID: campaignID,
 			}

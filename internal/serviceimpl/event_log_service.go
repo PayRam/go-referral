@@ -3,8 +3,8 @@ package serviceimpl
 import (
 	"errors"
 	"fmt"
-	"github.com/PayRam/go-referral/internal/db"
 	"github.com/PayRam/go-referral/models"
+	"github.com/PayRam/go-referral/request"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"time"
@@ -23,10 +23,24 @@ func NewEventLogService(db *gorm.DB) *eventLogService {
 
 // CreateEventLog creates a new event log entry
 func (s *eventLogService) CreateEventLog(project, eventKey string, referenceID string, amount *decimal.Decimal, data *string) (*models.EventLog, error) {
-	if amount == nil || amount.IsZero() {
-		return nil, errors.New("amount must be greater than 0")
+	// Fetch the event by project and eventKey
+	var event models.Event
+	if err := s.DB.Where("project = ? AND key = ?", project, eventKey).First(&event).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch event with key '%s' for project '%s': %w", eventKey, project, err)
 	}
 
+	// Validate amount based on event type
+	if event.EventType == "payment" {
+		if amount == nil || amount.IsZero() {
+			return nil, errors.New("amount must be greater than 0 for payment events")
+		}
+	} else {
+		if amount != nil {
+			return nil, errors.New("amount must be nil for non-payment events")
+		}
+	}
+
+	// Create the event log
 	eventLog := &models.EventLog{
 		Project:     project,
 		EventKey:    eventKey,
@@ -38,43 +52,53 @@ func (s *eventLogService) CreateEventLog(project, eventKey string, referenceID s
 	}
 
 	if err := s.DB.Create(eventLog).Error; err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create event log: %w", err)
 	}
+
 	return eventLog, nil
 }
 
 // GetEventLogs retrieves event logs based on dynamic conditions
-func (s *eventLogService) GetEventLogs(project string, conditions []db.QueryCondition, offset, limit *int, sort *string) ([]models.EventLog, error) {
+func (s *eventLogService) GetEventLogs(req request.GetEventLogRequest) ([]models.EventLog, int64, error) {
 	var eventLogs []models.EventLog
+	var count int64
 
-	// Start building the query
+	// Start query
 	query := s.DB.Model(&models.EventLog{})
 
-	query = query.Where("project = ?", project)
-
-	// Apply conditions dynamically
-	for _, condition := range conditions {
-		// Build the query with operator
-		query = query.Where(fmt.Sprintf("%s %s ?", condition.Field, condition.Operator), condition.Value)
+	// Apply filters
+	if req.Project != nil {
+		query = query.Where("project = ?", *req.Project)
+	}
+	if req.ID != nil {
+		query = query.Where("id = ?", *req.ID)
+	}
+	if req.EventKey != nil {
+		query = query.Where("event_key = ?", *req.EventKey)
+	}
+	if req.ReferenceID != nil {
+		query = query.Where("reference_id = ?", *req.ReferenceID)
+	}
+	if req.Status != nil {
+		query = query.Where("status = ?", *req.Status)
+	}
+	if req.RewardID != nil {
+		query = query.Where("reward_id = ?", *req.RewardID)
 	}
 
-	// Apply offset and limit
-	if offset != nil {
-		query = query.Offset(*offset)
-	}
-	if limit != nil {
-		query = query.Limit(*limit)
+	// Calculate total count before applying pagination
+	countQuery := query
+	if err := countQuery.Count(&count).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count eventLogs: %w", err)
 	}
 
-	// Apply sorting
-	if sort != nil {
-		query = query.Order(*sort)
-	}
+	// Apply pagination conditions
+	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
-	// Execute the query
+	// Fetch records with pagination
 	if err := query.Find(&eventLogs).Error; err != nil {
-		return nil, err
+		return nil, 0, fmt.Errorf("failed to fetch eventLogs: %w", err)
 	}
 
-	return eventLogs, nil
+	return eventLogs, count, nil
 }

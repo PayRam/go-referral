@@ -60,3 +60,57 @@ func (s *rewardService) GetTotalRewards(request request.GetRewardRequest) (decim
 
 	return totalAmount, nil
 }
+
+// GetRewards fetches rewards based on the provided request
+func (s *rewardService) GetRewards(req request.GetRewardRequest) ([]models.Reward, int64, error) {
+	var rewards []models.Reward
+	var count int64
+
+	// Start query
+	query := s.DB.Model(&models.Reward{})
+
+	// Apply filters
+	if req.Project != nil {
+		query = query.Where("project = ?", *req.Project)
+	}
+	if req.ID != nil {
+		query = query.Where("id = ?", *req.ID)
+	}
+	if req.CampaignID != nil {
+		query = query.Where("campaign_id = ?", *req.CampaignID)
+	}
+	if req.RefereeID != nil {
+		query = query.Where("referee_id = ?", *req.RefereeID)
+	}
+	if req.RefereeReferenceID != nil {
+		query = query.Where("referee_reference_id = ?", *req.RefereeReferenceID)
+	}
+	if req.ReferrerID != nil {
+		query = query.Where("referrer_id = ?", *req.ReferrerID)
+	}
+	if req.ReferrerReferenceID != nil {
+		query = query.Where("referrer_reference_id = ?", *req.ReferrerReferenceID)
+	}
+	if req.ReferrerCode != nil {
+		query = query.Where("referrer_code = ?", *req.ReferrerCode)
+	}
+	if req.Status != nil {
+		query = query.Where("status = ?", *req.Status)
+	}
+
+	// Calculate total count before applying pagination
+	countQuery := query
+	if err := countQuery.Count(&count).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count rewards: %w", err)
+	}
+
+	// Apply pagination conditions
+	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
+
+	// Fetch records with pagination
+	if err := query.Find(&rewards).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to fetch rewards: %w", err)
+	}
+
+	return rewards, count, nil
+}

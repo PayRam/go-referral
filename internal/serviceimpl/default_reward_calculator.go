@@ -21,21 +21,17 @@ func (d *DefaultRewardCalculator) CalculateReward(
 	referee models.Referee,
 	referrer models.Referrer,
 ) (*models.Reward, error) {
-	// Validate RewardType
-	if campaign.RewardType == nil || campaign.RewardValue == nil {
-		return nil, fmt.Errorf("kindly set the rewards for the campaign %d", campaign.ID)
-	}
 
-	if *campaign.RewardType != "flat_fee" && *campaign.RewardType != "percentage" {
-		return nil, fmt.Errorf("unknown reward type: %s", *campaign.RewardType)
+	if campaign.RewardType != "flat_fee" && campaign.RewardType != "percentage" {
+		return nil, fmt.Errorf("unknown reward type: %s", campaign.RewardType)
 	}
 
 	// Calculate reward amount based on RewardType
 	var rewardAmount decimal.Decimal
-	switch *campaign.RewardType {
+	switch campaign.RewardType {
 	case "flat_fee":
 		// Use event's RewardValue as a flat fee
-		rewardAmount = decimal.NewFromFloat(*campaign.RewardValue)
+		rewardAmount = *campaign.RewardValue
 	case "percentage":
 		// Extract transaction amount from EventLog.Data
 		transactionAmount := extractTransactionAmount(eventLog.Data)
@@ -44,7 +40,7 @@ func (d *DefaultRewardCalculator) CalculateReward(
 		}
 
 		// Calculate percentage-based reward
-		rewardAmount = transactionAmount.Mul(decimal.NewFromFloat(*campaign.RewardValue)).Div(decimal.NewFromInt(100))
+		rewardAmount = transactionAmount.Mul(*campaign.RewardValue).Div(decimal.NewFromInt(100))
 	}
 
 	// Construct the Reward object

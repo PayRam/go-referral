@@ -6,6 +6,7 @@ import (
 	"github.com/PayRam/go-referral/models"
 	"github.com/PayRam/go-referral/request"
 	"gorm.io/gorm"
+	"regexp"
 )
 
 type eventService struct {
@@ -19,10 +20,30 @@ func NewEventService(db *gorm.DB) *eventService {
 }
 
 // CreateEvent creates a new event associated with a campaign
-func (s *eventService) CreateEvent(project, key, name string, description *string, eventType string) (*models.Event, error) {
+func (s *eventService) CreateEvent(project string, request request.CreateEventRequest) (*models.Event, error) {
+
+	var validKeyRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+
+	// Inside your method
+	if request.Key == "" {
+		return nil, errors.New("event key is required")
+	}
+
+	if !validKeyRegex.MatchString(request.Key) {
+		return nil, errors.New("event key must only contain letters, numbers, underscores (_), or hyphens (-)")
+	}
+
+	if request.Name == "" {
+		return nil, errors.New("event name is required")
+	}
+
+	if request.EventType != "simple" && request.EventType != "payment" {
+		return nil, errors.New("event type must be either 'simple' or 'payment'")
+	}
+
 	// Check if the event key already exists
 	var count int64
-	if err := s.DB.Model(&models.Event{}).Where("project = ? AND key = ?", project, key).Count(&count).Error; err != nil {
+	if err := s.DB.Model(&models.Event{}).Where("project = ? AND key = ?", project, request.Key).Count(&count).Error; err != nil {
 		return nil, fmt.Errorf("failed to check existing event: %w", err)
 	}
 
@@ -32,10 +53,10 @@ func (s *eventService) CreateEvent(project, key, name string, description *strin
 
 	event := &models.Event{
 		Project:     project,
-		Key:         key,
-		Name:        name,
-		Description: description,
-		EventType:   eventType,
+		Key:         request.Key,
+		Name:        request.Name,
+		Description: request.Description,
+		EventType:   request.EventType,
 	}
 
 	if err := s.DB.Create(event).Error; err != nil {
@@ -46,6 +67,18 @@ func (s *eventService) CreateEvent(project, key, name string, description *strin
 
 // UpdateEvent updates an existing event
 func (s *eventService) UpdateEvent(project, key string, req request.UpdateEventRequest) (*models.Event, error) {
+	if req.Name == nil && req.Description == nil {
+		return nil, errors.New("no update fields provided")
+	}
+
+	if req.Name != nil && *req.Name == "" {
+		return nil, errors.New("event name cannot be empty")
+	}
+
+	if req.Description != nil && *req.Description == "" {
+		return nil, errors.New("event description cannot be empty")
+	}
+
 	var event models.Event
 
 	// Fetch the event by key
@@ -63,9 +96,6 @@ func (s *eventService) UpdateEvent(project, key string, req request.UpdateEventR
 	}
 	if req.Description != nil {
 		updates["description"] = *req.Description
-	}
-	if req.EventType != nil {
-		updates["event_type"] = *req.EventType
 	}
 
 	// Apply updates

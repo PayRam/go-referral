@@ -2,6 +2,7 @@ package request
 
 import (
 	"fmt"
+	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"time"
 )
@@ -48,25 +49,61 @@ func ApplyPaginationConditions(query *gorm.DB, conditions PaginationConditions) 
 	return query
 }
 
+type CreateEventRequest struct {
+	Key         string  `json:"key" binding:"required"`
+	Name        string  `json:"name" binding:"required"`
+	EventType   string  `json:"eventType" binding:"required"` // e.g., "simple", "payment"
+	Description *string `json:"description"`
+}
+
 type UpdateEventRequest struct {
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
-	EventType   *string `json:"eventType"` // e.g., "simple", "payment"
+}
+
+type CreateCampaignRequest struct {
+	Name               string           `json:"name" binding:"required"`
+	RewardType         string           `json:"rewardType" binding:"required"` // e.g., "flat_fee", "percentage"
+	RewardValue        *decimal.Decimal `json:"rewardValue" binding:"required"`
+	RewardCap          *decimal.Decimal `json:"RewardCap"`
+	InviteeRewardType  *string          `json:"inviteeRewardType"` // e.g., "flat_fee", "percentage"
+	InviteeRewardValue *decimal.Decimal `json:"inviteeRewardValue"`
+	InviteeRewardCap   *decimal.Decimal `json:"inviteeRewardCap"` // Cap for invitee reward
+	Budget             *decimal.Decimal `json:"budget"`           // Optional budget
+	Description        *string          `json:"description"`
+	StartDate          *time.Time       `json:"startDate"`
+	EndDate            *time.Time       `json:"endDate"`
+	IsDefault          bool             `json:"isDefault"` // Only one default campaign
+
+	CampaignTypePerCustomer   string           `json:"type" binding:"required"` // Campaign type: "one_time", "forever", "months_per_customer", "count_per_customer"
+	ValidityMonthsPerCustomer *int             `json:"monthsPerCustomer"`       // For "months_per_customer"
+	MaxOccurrencesPerCustomer *int64           `json:"countPerCustomer"`        // For "count_per_customer"
+	RewardCapPerCustomer      *decimal.Decimal `json:"rewardCapPerCustomer"`    // Maximum reward for percentage type
+
+	EventKeys []string `json:"eventKeys"`
 }
 
 type UpdateCampaignRequest struct {
-	Name               *string    `json:"name"`
-	RewardType         *string    `json:"rewardType"` // e.g., "flat_fee", "percentage"
-	RewardValue        *float64   `json:"rewardValue"`
-	MaxOccurrences     *uint      `json:"maxOccurrences"`
-	ValidityDays       *uint      `json:"validityDays"`
-	InviteeRewardType  *string    `json:"inviteeRewardType"` // e.g., "flat_fee", "percentage"
-	InviteeRewardValue *float64   `json:"inviteeRewardValue"`
-	Budget             *float64   `json:"budget"` // Optional budget
-	Description        *string    `json:"description"`
-	StartDate          *time.Time `json:"startDate"`
-	EndDate            *time.Time `json:"endDate"`
-	IsActive           *bool      `json:"isActive"`
+	Name               *string          `json:"name"`
+	RewardType         *string          `json:"rewardType"` // e.g., "flat_fee", "percentage"
+	RewardValue        *decimal.Decimal `json:"rewardValue"`
+	RewardCap          *decimal.Decimal `json:"RewardCap"`
+	InviteeRewardType  *string          `json:"inviteeRewardType"` // e.g., "flat_fee", "percentage"
+	InviteeRewardValue *decimal.Decimal `json:"inviteeRewardValue"`
+	InviteeRewardCap   *decimal.Decimal `json:"inviteeRewardCap"` // Cap for invitee reward
+	Budget             *decimal.Decimal `json:"budget"`           // Optional budget
+	Description        *string          `json:"description"`
+	StartDate          *time.Time       `json:"startDate"`
+	EndDate            *time.Time       `json:"endDate"`
+	IsActive           *bool            `json:"isActive"`
+	IsDefault          *bool            `json:"isDefault"` // Only one default campaign
+
+	CampaignTypePerCustomer   *string          `json:"type" binding:"required"` // Campaign type: "one_time", "forever", "months_per_customer", "count_per_customer"
+	ValidityMonthsPerCustomer *int             `json:"monthsPerCustomer"`       // For "months_per_customer"
+	MaxOccurrencesPerCustomer *int64           `json:"countPerCustomer"`        // For "count_per_customer"
+	RewardCapPerCustomer      *decimal.Decimal `json:"rewardCapPerCustomer"`    // Maximum reward for percentage type
+
+	EventKeys []string `json:"eventKeys"`
 }
 
 type GetCampaignsRequest struct {
@@ -112,5 +149,12 @@ type GetRewardRequest struct {
 	PaginationConditions PaginationConditions `json:"paginationConditions"` // Embedded pagination and sorting struct
 }
 
-//Amount              decimal.Decimal `gorm:"type:decimal(38,18);not null"`       // Calculated reward amount
-//Reason              *string         `gorm:"type:text"`
+type GetEventLogRequest struct {
+	Project              *string              `json:"project"` // Filter by name
+	ID                   *uint                `json:"id"`      // Filter by ID
+	EventKey             *string              `json:"eventKey"`
+	ReferenceID          *string              `json:"referenceID"`
+	Status               *string              `json:"status"`               // Composite key with Project
+	RewardID             *uint                `json:"rewardID"`             // Nullable to allow logs without an associated reward
+	PaginationConditions PaginationConditions `json:"paginationConditions"` // Embedded pagination and sorting struct
+}

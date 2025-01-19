@@ -1,16 +1,14 @@
 package service
 
 import (
-	"github.com/PayRam/go-referral/internal/db"
 	"github.com/PayRam/go-referral/models"
 	"github.com/PayRam/go-referral/request"
 	"github.com/shopspring/decimal"
-	"time"
 )
 
 // EventService handles operations related to events
 type EventService interface {
-	CreateEvent(project, key, name string, description *string, eventType string) (*models.Event, error)
+	CreateEvent(project string, request request.CreateEventRequest) (*models.Event, error)
 	UpdateEvent(project, key string, req request.UpdateEventRequest) (*models.Event, error)
 	GetAll(project string) ([]models.Event, error)
 	GetByKey(project, key string) (*models.Event, error)
@@ -20,12 +18,13 @@ type EventService interface {
 
 // CampaignService handles operations related to campaigns
 type CampaignService interface {
-	CreateCampaign(project, name, description string, startDate, endDate time.Time, events []models.Event, rewardType *string, rewardValue *float64, maxOccurrences *uint, validityDays *uint, budget *decimal.Decimal) (*models.Campaign, error)
+	CreateCampaign(project string, req request.CreateCampaignRequest) (*models.Campaign, error)
 	GetCampaigns(req request.GetCampaignsRequest) ([]models.Campaign, int64, error)
 	UpdateCampaign(project string, id uint, req request.UpdateCampaignRequest) (*models.Campaign, error)
-	UpdateCampaignEvents(project string, campaignID uint, events []models.Event) (*models.Campaign, error)
+	//UpdateCampaignEvents(project string, campaignID uint, eventKeys []string) (*models.Campaign, error)
 	SetDefaultCampaign(project string, campaignID uint) (*models.Campaign, error)
 	PauseCampaign(project string, campaignID uint) (*models.Campaign, error)
+	ResumeCampaign(project string, campaignID uint) (*models.Campaign, error)
 	DeleteCampaign(project string, campaignID uint) (bool, error)
 	GetTotalCampaigns(req request.GetCampaignsRequest) (int64, error)
 }
@@ -47,11 +46,12 @@ type RefereeService interface {
 
 type EventLogService interface {
 	CreateEventLog(project, eventKey string, referenceID string, amount *decimal.Decimal, data *string) (*models.EventLog, error)
-	GetEventLogs(project string, conditions []db.QueryCondition, offset, limit *int, sort *string) ([]models.EventLog, error)
+	GetEventLogs(req request.GetEventLogRequest) ([]models.EventLog, int64, error)
 }
 
 type RewardService interface {
 	GetTotalRewards(request request.GetRewardRequest) (decimal.Decimal, error)
+	GetRewards(req request.GetRewardRequest) ([]models.Reward, int64, error)
 }
 
 type RewardCalculator interface {
