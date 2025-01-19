@@ -259,7 +259,7 @@ func areAllCampaignEventsSatisfied(events []models.Event, logs []models.EventLog
 
 func calculateReward(tx *gorm.DB, campaign models.Campaign, logs []models.EventLog) (*decimal.Decimal, error) {
 	if campaign.RewardType == "flat_fee" {
-		return campaign.RewardValue, nil
+		return &campaign.RewardValue, nil
 	}
 
 	if campaign.RewardType == "percentage" {

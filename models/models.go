@@ -18,7 +18,7 @@ type Campaign struct {
 	Project            string           `gorm:"size:100;not null;index"`
 	Name               string           `gorm:"size:255;not null;index"`
 	RewardType         string           `gorm:"size:50"`                        // e.g., "flat_fee", "percentage"
-	RewardValue        *decimal.Decimal `gorm:""`                               // Percentage value or flat fee
+	RewardValue        decimal.Decimal  `gorm:""`                               // Percentage value or flat fee
 	RewardCap          *decimal.Decimal `gorm:"type:decimal(38,18)"`            // Maximum reward for percentage type
 	InviteeRewardType  *string          `gorm:"size:50"`                        // e.g., "flat_fee", "percentage"
 	InviteeRewardValue *decimal.Decimal `gorm:""`                               // Reward for invitee

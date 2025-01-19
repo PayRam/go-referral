@@ -31,7 +31,7 @@ func (d *DefaultRewardCalculator) CalculateReward(
 	switch campaign.RewardType {
 	case "flat_fee":
 		// Use event's RewardValue as a flat fee
-		rewardAmount = *campaign.RewardValue
+		rewardAmount = campaign.RewardValue
 	case "percentage":
 		// Extract transaction amount from EventLog.Data
 		transactionAmount := extractTransactionAmount(eventLog.Data)
@@ -40,7 +40,7 @@ func (d *DefaultRewardCalculator) CalculateReward(
 		}
 
 		// Calculate percentage-based reward
-		rewardAmount = transactionAmount.Mul(*campaign.RewardValue).Div(decimal.NewFromInt(100))
+		rewardAmount = transactionAmount.Mul(campaign.RewardValue).Div(decimal.NewFromInt(100))
 	}
 
 	// Construct the Reward object

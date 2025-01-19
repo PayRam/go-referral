@@ -205,7 +205,7 @@ func TestOneTimeCampaign(t *testing.T) {
 	campaign := createCampaign(t, project, request.CreateCampaignRequest{
 		Name:                    "New User Campaign",
 		RewardType:              "percentage",
-		RewardValue:             &rewardValue,
+		RewardValue:             rewardValue,
 		StartDate:               &startDate,
 		EndDate:                 &endDate,
 		Description:             &description,
@@ -316,7 +316,7 @@ func TestRecurringCampaignWithRewardCapAndLimitedBudget(t *testing.T) {
 	campaign := createCampaign(t, project, request.CreateCampaignRequest{
 		Name:                      "New User Campaign",
 		RewardType:                "percentage",
-		RewardValue:               &rewardValue,
+		RewardValue:               rewardValue,
 		RewardCap:                 &rewardCap,
 		StartDate:                 &startDate,
 		EndDate:                   &endDate,
@@ -410,7 +410,7 @@ func TestRecurringCampaignWithMaxOccurrencesPerCustomer(t *testing.T) {
 	campaign := createCampaign(t, project, request.CreateCampaignRequest{
 		Name:        "New User Campaign",
 		RewardType:  "percentage",
-		RewardValue: &rewardValue,
+		RewardValue: rewardValue,
 		//RewardCap:                 &rewardCap,
 		StartDate:                 &startDate,
 		EndDate:                   &endDate,
