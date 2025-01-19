@@ -497,14 +497,4 @@ func TestAggregator(t *testing.T) {
 	assert.Equal(t, "recumaxoccurrenceproject", stats[2].Project)
 	assert.Equal(t, int64(1), stats[2].RefereeCount)
 	assert.Equal(t, "217.33771321", stats[2].TotalRewards.String())
-	//print all stats
-	for _, stat := range stats {
-		log.Printf("**************************************\n")
-		log.Printf("Project : %s", stat.Project)
-		log.Printf("Reference ID : %s", stat.ReferenceID)
-		log.Printf("Code : %s", stat.Code)
-		log.Printf("Referee Count : %d", stat.RefereeCount)
-		log.Printf("Reward Count : %s", stat.TotalRewards.String())
-		log.Printf("**************************************\n")
-	}
 }
