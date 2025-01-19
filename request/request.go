@@ -65,7 +65,7 @@ type CreateCampaignRequest struct {
 	Name               string           `json:"name" binding:"required"`
 	RewardType         string           `json:"rewardType" binding:"required"` // e.g., "flat_fee", "percentage"
 	RewardValue        *decimal.Decimal `json:"rewardValue" binding:"required"`
-	RewardCap          *decimal.Decimal `json:"RewardCap"`
+	RewardCap          *decimal.Decimal `json:"rewardCap"`
 	InviteeRewardType  *string          `json:"inviteeRewardType"` // e.g., "flat_fee", "percentage"
 	InviteeRewardValue *decimal.Decimal `json:"inviteeRewardValue"`
 	InviteeRewardCap   *decimal.Decimal `json:"inviteeRewardCap"` // Cap for invitee reward
@@ -75,10 +75,10 @@ type CreateCampaignRequest struct {
 	EndDate            *time.Time       `json:"endDate"`
 	IsDefault          bool             `json:"isDefault"` // Only one default campaign
 
-	CampaignTypePerCustomer   string           `json:"type" binding:"required"` // Campaign type: "one_time", "forever", "months_per_customer", "count_per_customer"
-	ValidityMonthsPerCustomer *int             `json:"monthsPerCustomer"`       // For "months_per_customer"
-	MaxOccurrencesPerCustomer *int64           `json:"countPerCustomer"`        // For "count_per_customer"
-	RewardCapPerCustomer      *decimal.Decimal `json:"rewardCapPerCustomer"`    // Maximum reward for percentage type
+	CampaignTypePerCustomer   string           `json:"campaignTypePerCustomer" binding:"required"` // Campaign type: "one_time", "forever", "months_per_customer", "count_per_customer"
+	ValidityMonthsPerCustomer *int             `json:"validityMonthsPerCustomer"`                  // For "months_per_customer"
+	MaxOccurrencesPerCustomer *int64           `json:"maxOccurrencesPerCustomer"`                  // For "count_per_customer"
+	RewardCapPerCustomer      *decimal.Decimal `json:"rewardCapPerCustomer"`                       // Maximum reward for percentage type
 
 	EventKeys []string `json:"eventKeys"`
 }
@@ -87,7 +87,7 @@ type UpdateCampaignRequest struct {
 	Name               *string          `json:"name"`
 	RewardType         *string          `json:"rewardType"` // e.g., "flat_fee", "percentage"
 	RewardValue        *decimal.Decimal `json:"rewardValue"`
-	RewardCap          *decimal.Decimal `json:"RewardCap"`
+	RewardCap          *decimal.Decimal `json:"rewardCap"`
 	InviteeRewardType  *string          `json:"inviteeRewardType"` // e.g., "flat_fee", "percentage"
 	InviteeRewardValue *decimal.Decimal `json:"inviteeRewardValue"`
 	InviteeRewardCap   *decimal.Decimal `json:"inviteeRewardCap"` // Cap for invitee reward
@@ -98,10 +98,10 @@ type UpdateCampaignRequest struct {
 	Status             *string          `json:"status"`
 	IsDefault          *bool            `json:"isDefault"` // Only one default campaign
 
-	CampaignTypePerCustomer   *string          `json:"type" binding:"required"` // Campaign type: "one_time", "forever", "months_per_customer", "count_per_customer"
-	ValidityMonthsPerCustomer *int             `json:"monthsPerCustomer"`       // For "months_per_customer"
-	MaxOccurrencesPerCustomer *int64           `json:"countPerCustomer"`        // For "count_per_customer"
-	RewardCapPerCustomer      *decimal.Decimal `json:"rewardCapPerCustomer"`    // Maximum reward for percentage type
+	CampaignTypePerCustomer   *string          `json:"campaignTypePerCustomer" binding:"required"` // Campaign type: "one_time", "forever", "months_per_customer", "count_per_customer"
+	ValidityMonthsPerCustomer *int             `json:"validityMonthsPerCustomer"`                  // For "months_per_customer"
+	MaxOccurrencesPerCustomer *int64           `json:"maxOccurrencesPerCustomer"`                  // For "count_per_customer"
+	RewardCapPerCustomer      *decimal.Decimal `json:"rewardCapPerCustomer"`                       // Maximum reward for percentage type
 
 	EventKeys []string `json:"eventKeys"`
 }
