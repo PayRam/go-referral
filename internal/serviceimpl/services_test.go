@@ -475,3 +475,36 @@ func TestRecurringCampaignWithMaxOccurrencesPerCustomer(t *testing.T) {
 	assert.Equal(t, rewards[1].ID, eventLogs[1].RewardID)
 	//assert.Equal(t, rewards[1].ID, eventLogs[1].RewardID)
 }
+
+func TestAggregator(t *testing.T) {
+	stats, count, err := referralService.AggregatorService.GetReferrersWithStats(request.GetReferrerRequest{
+		PaginationConditions: request.PaginationConditions{
+			SortBy: utils.StringPtr("id"),
+			Order:  utils.StringPtr("asc"),
+		},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, int64(3), count)
+
+	assert.Equal(t, "onetimeproject", stats[0].Project)
+	assert.Equal(t, int64(1), stats[0].RefereeCount)
+	assert.Equal(t, "10.05", stats[0].TotalRewards.String())
+
+	assert.Equal(t, "recurringproject", stats[1].Project)
+	assert.Equal(t, int64(1), stats[1].RefereeCount)
+	assert.Equal(t, "27.77745", stats[1].TotalRewards.String())
+
+	assert.Equal(t, "recumaxoccurrenceproject", stats[2].Project)
+	assert.Equal(t, int64(1), stats[2].RefereeCount)
+	assert.Equal(t, "217.33771321", stats[2].TotalRewards.String())
+	//print all stats
+	for _, stat := range stats {
+		log.Printf("**************************************\n")
+		log.Printf("Project : %s", stat.Project)
+		log.Printf("Reference ID : %s", stat.ReferenceID)
+		log.Printf("Code : %s", stat.Code)
+		log.Printf("Referee Count : %d", stat.RefereeCount)
+		log.Printf("Reward Count : %s", stat.TotalRewards.String())
+		log.Printf("**************************************\n")
+	}
+}

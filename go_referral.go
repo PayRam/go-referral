@@ -8,24 +8,26 @@ import (
 )
 
 type ReferralService struct {
-	Events        service.EventService
-	Campaigns     service.CampaignService
-	Referrers     service.ReferrerService
-	Referees      service.RefereeService
-	EventLogs     service.EventLogService
-	RewardService service.RewardService
-	Worker        service.Worker
+	Events            service.EventService
+	Campaigns         service.CampaignService
+	Referrers         service.ReferrerService
+	Referees          service.RefereeService
+	EventLogs         service.EventLogService
+	RewardService     service.RewardService
+	AggregatorService service.AggregatorService
+	Worker            service.Worker
 }
 
 func NewReferralService(db *gorm.DB) *ReferralService {
 	db2.Migrate(db)
 	return &ReferralService{
-		Events:        serviceimpl.NewEventService(db),
-		Campaigns:     serviceimpl.NewCampaignService(db),
-		Referrers:     serviceimpl.NewReferrerService(db),
-		Referees:      serviceimpl.NewRefereeService(db),
-		EventLogs:     serviceimpl.NewEventLogService(db),
-		RewardService: serviceimpl.NewRewardService(db),
-		Worker:        serviceimpl.NewWorkerService(db),
+		Events:            serviceimpl.NewEventService(db),
+		Campaigns:         serviceimpl.NewCampaignService(db),
+		Referrers:         serviceimpl.NewReferrerService(db),
+		Referees:          serviceimpl.NewRefereeService(db),
+		EventLogs:         serviceimpl.NewEventLogService(db),
+		RewardService:     serviceimpl.NewRewardService(db),
+		AggregatorService: serviceimpl.NewAggregatorService(db),
+		Worker:            serviceimpl.NewWorkerService(db),
 	}
 }

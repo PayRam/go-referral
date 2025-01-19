@@ -3,6 +3,7 @@ package service
 import (
 	"github.com/PayRam/go-referral/models"
 	"github.com/PayRam/go-referral/request"
+	"github.com/PayRam/go-referral/response"
 	"github.com/shopspring/decimal"
 )
 
@@ -20,7 +21,7 @@ type CampaignService interface {
 	GetTotalCampaigns(req request.GetCampaignsRequest) (int64, error)
 	UpdateCampaign(project string, id uint, req request.UpdateCampaignRequest) (*models.Campaign, error)
 	SetDefaultCampaign(project string, campaignID uint) (*models.Campaign, error)
-	RemoveDefaultCampaign(project string) (*models.Campaign, error)
+	RemoveDefaultCampaign(project string, campaignID uint) (*models.Campaign, error)
 	PauseCampaign(project string, campaignID uint) (*models.Campaign, error)
 	ResumeCampaign(project string, campaignID uint) (*models.Campaign, error)
 	ArchiveCampaign(project string, campaignID uint) (*models.Campaign, error)
@@ -49,6 +50,10 @@ type EventLogService interface {
 type RewardService interface {
 	GetTotalRewards(request request.GetRewardRequest) (decimal.Decimal, error)
 	GetRewards(req request.GetRewardRequest) ([]models.Reward, int64, error)
+}
+
+type AggregatorService interface {
+	GetReferrersWithStats(req request.GetReferrerRequest) ([]response.ReferrerStats, int64, error)
 }
 
 type RewardCalculator interface {
