@@ -287,10 +287,10 @@ func TestOneTimeCampaign(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, int64(4), count)
 
-	assert.Equal(t, rewards[0].ID, eventLogs[0].RewardID)
-	assert.Equal(t, uint(0), eventLogs[1].RewardID)
-	assert.Equal(t, rewards[0].ID, eventLogs[2].RewardID)
-	assert.Equal(t, uint(0), eventLogs[3].RewardID)
+	assert.Equal(t, rewards[0].ID, *eventLogs[0].RewardID)
+	assert.Nil(t, eventLogs[1].RewardID)
+	assert.Equal(t, rewards[0].ID, *eventLogs[2].RewardID)
+	assert.Nil(t, eventLogs[3].RewardID)
 
 }
 
@@ -384,8 +384,8 @@ func TestRecurringCampaignWithRewardCapAndLimitedBudget(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, int64(3), count)
 
-	assert.Equal(t, rewards[0].ID, eventLogs[0].RewardID)
-	assert.Equal(t, rewards[1].ID, eventLogs[1].RewardID)
+	assert.Equal(t, rewards[0].ID, *eventLogs[0].RewardID)
+	assert.Equal(t, rewards[1].ID, *eventLogs[1].RewardID)
 }
 
 func TestRecurringCampaignWithMaxOccurrencesPerCustomer(t *testing.T) {
@@ -476,8 +476,8 @@ func TestRecurringCampaignWithMaxOccurrencesPerCustomer(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, int64(3), count)
 
-	assert.Equal(t, rewards[0].ID, eventLogs[0].RewardID)
-	assert.Equal(t, rewards[1].ID, eventLogs[1].RewardID)
+	assert.Equal(t, rewards[0].ID, *eventLogs[0].RewardID)
+	assert.Equal(t, rewards[1].ID, *eventLogs[1].RewardID)
 	//assert.Equal(t, rewards[1].ID, eventLogs[1].RewardID)
 }
 

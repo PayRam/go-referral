@@ -118,7 +118,7 @@ type EventLog struct {
 	FailureReason *string          `gorm:"type:text"`
 
 	// Foreign key for the reward this log contributes to
-	RewardID uint    `gorm:"index"` // Nullable to allow logs without an associated reward
+	RewardID *uint   `gorm:"index"` // Nullable to allow logs without an associated reward
 	Reward   *Reward `gorm:"foreignKey:RewardID"`
 }
 

@@ -180,7 +180,7 @@ func (w *worker) ProcessPendingEvents() error {
 				// Mark associated EventLogs as processed
 				for _, log := range logs {
 					log.Status = "processed"
-					log.RewardID = reward.ID
+					log.RewardID = &reward.ID
 					log.FailureReason = nil
 					if err := tx.Save(&log).Error; err != nil {
 						return fmt.Errorf("failed to update EventLog status: %w", err)
