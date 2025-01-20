@@ -70,22 +70,22 @@ func (s *campaignService) CreateCampaign(project string, req request.CreateCampa
 	// Validate CampaignTypePerCustomer
 	switch req.CampaignTypePerCustomer {
 	case "one_time", "forever":
-		if req.ValidityMonthsPerCustomer != nil || req.MaxOccurrencesPerCustomer != nil || req.RewardCapPerCustomer != nil {
-			return nil, errors.New("for 'one_time' or 'forever' CampaignTypePerCustomer, ValidityMonthsPerCustomer, MaxOccurrencesPerCustomer, and RewardCapPerCustomer must be nil")
+		if req.ValidityMonthsPerCustomer != nil || req.MaxOccurrencesPerCustomer != nil {
+			return nil, errors.New("for 'one_time' or 'forever' CampaignTypePerCustomer, ValidityMonthsPerCustomer and MaxOccurrencesPerCustomer must be nil")
 		}
 	case "months_per_customer":
 		if req.ValidityMonthsPerCustomer == nil {
 			return nil, errors.New("ValidityMonthsPerCustomer is required for 'months_per_customer' CampaignTypePerCustomer")
 		}
-		if req.MaxOccurrencesPerCustomer != nil || req.RewardCapPerCustomer != nil {
-			return nil, errors.New("for 'months_per_customer' CampaignTypePerCustomer, MaxOccurrencesPerCustomer and RewardCapPerCustomer must be nil")
+		if req.MaxOccurrencesPerCustomer != nil {
+			return nil, errors.New("for 'months_per_customer' MaxOccurrencesPerCustomer must be nil")
 		}
 	case "count_per_customer":
 		if req.MaxOccurrencesPerCustomer == nil {
 			return nil, errors.New("MaxOccurrencesPerCustomer is required for 'count_per_customer' CampaignTypePerCustomer")
 		}
-		if req.ValidityMonthsPerCustomer != nil || req.RewardCapPerCustomer != nil {
-			return nil, errors.New("for 'count_per_customer' CampaignTypePerCustomer, ValidityMonthsPerCustomer and RewardCapPerCustomer must be nil")
+		if req.ValidityMonthsPerCustomer != nil {
+			return nil, errors.New("for 'count_per_customer' ValidityMonthsPerCustomer must be nil")
 		}
 	default:
 		return nil, errors.New("invalid CampaignTypePerCustomer; must be 'one_time', 'forever', 'months_per_customer', or 'count_per_customer'")
@@ -333,22 +333,22 @@ func (s *campaignService) UpdateCampaign(project string, id uint, req request.Up
 	if req.CampaignTypePerCustomer != nil {
 		switch *req.CampaignTypePerCustomer {
 		case "one_time", "forever":
-			if req.ValidityMonthsPerCustomer != nil || req.MaxOccurrencesPerCustomer != nil || req.RewardCapPerCustomer != nil {
-				return nil, errors.New("for 'one_time' or 'forever' CampaignTypePerCustomer, ValidityMonthsPerCustomer, MaxOccurrencesPerCustomer, and RewardCapPerCustomer must be nil")
+			if req.ValidityMonthsPerCustomer != nil || req.MaxOccurrencesPerCustomer != nil {
+				return nil, errors.New("for 'one_time' or 'forever' CampaignTypePerCustomer, ValidityMonthsPerCustomer and MaxOccurrencesPerCustomer must be nil")
 			}
 		case "months_per_customer":
 			if req.ValidityMonthsPerCustomer == nil {
 				return nil, errors.New("ValidityMonthsPerCustomer is required for 'months_per_customer' CampaignTypePerCustomer")
 			}
-			if req.MaxOccurrencesPerCustomer != nil || req.RewardCapPerCustomer != nil {
-				return nil, errors.New("for 'months_per_customer' CampaignTypePerCustomer, MaxOccurrencesPerCustomer and RewardCapPerCustomer must be nil")
+			if req.MaxOccurrencesPerCustomer != nil {
+				return nil, errors.New("for 'months_per_customer' MaxOccurrencesPerCustomer must be nil")
 			}
 		case "count_per_customer":
 			if req.MaxOccurrencesPerCustomer == nil {
 				return nil, errors.New("MaxOccurrencesPerCustomer is required for 'count_per_customer' CampaignTypePerCustomer")
 			}
-			if req.ValidityMonthsPerCustomer != nil || req.RewardCapPerCustomer != nil {
-				return nil, errors.New("for 'count_per_customer' CampaignTypePerCustomer, ValidityMonthsPerCustomer and RewardCapPerCustomer must be nil")
+			if req.ValidityMonthsPerCustomer != nil {
+				return nil, errors.New("for 'count_per_customer' ValidityMonthsPerCustomer must be nil")
 			}
 		default:
 			return nil, errors.New("invalid CampaignTypePerCustomer; must be 'one_time', 'forever', 'months_per_customer', or 'count_per_customer'")
