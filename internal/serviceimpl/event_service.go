@@ -128,21 +128,7 @@ func (s *eventService) GetEvents(req request.GetEventsRequest) ([]models.Event, 
 	query := s.DB.Model(&models.Event{})
 
 	// Apply filters
-	if req.Projects != nil && len(req.Projects) > 0 {
-		query = query.Where("project IN (?)", req.Projects)
-	}
-	if req.ID != nil {
-		query = query.Where("id = ?", *req.ID)
-	}
-	if req.Key != nil {
-		query = query.Where("key = ?", *req.Key)
-	}
-	if req.Name != nil {
-		query = query.Where("name LIKE ?", "%"+*req.Name+"%")
-	}
-	if req.EventType != nil {
-		query = query.Where("event_type = ?", *req.EventType)
-	}
+	query = request.ApplyGetEventRequest(req, query)
 
 	// Calculate total count before applying pagination
 	countQuery := query

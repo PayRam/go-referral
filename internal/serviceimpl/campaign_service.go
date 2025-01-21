@@ -212,7 +212,7 @@ func (s *campaignService) GetCampaigns(req request.GetCampaignsRequest) ([]model
 	// Start query
 	query := s.DB.Model(&models.Campaign{})
 
-	query = getCampaignRequestQueryParams(req, query)
+	query = request.ApplyGetCampaignRequest(req, query)
 
 	// Calculate total count before applying pagination
 	countQuery := query
@@ -237,7 +237,7 @@ func (s *campaignService) GetTotalCampaigns(req request.GetCampaignsRequest) (in
 	// Build the query
 	query := s.DB.Model(&models.Campaign{})
 
-	query = getCampaignRequestQueryParams(req, query)
+	query = request.ApplyGetCampaignRequest(req, query)
 
 	// Count the records
 	if err := query.Count(&count).Error; err != nil {
@@ -245,38 +245,6 @@ func (s *campaignService) GetTotalCampaigns(req request.GetCampaignsRequest) (in
 	}
 
 	return count, nil
-}
-
-func getCampaignRequestQueryParams(req request.GetCampaignsRequest, query *gorm.DB) *gorm.DB {
-	// Apply filters
-	if req.Projects != nil && len(req.Projects) > 0 {
-		query = query.Where("project IN (?)", req.Projects)
-	}
-	if req.ID != nil {
-		query = query.Where("id = ?", *req.ID)
-	}
-	if req.Name != nil {
-		query = query.Where("name LIKE ?", "%"+*req.Name+"%")
-	}
-	if req.Status != nil {
-		query = query.Where("status = ?", *req.Status)
-	}
-	if req.IsDefault != nil {
-		query = query.Where("is_default = ?", *req.IsDefault)
-	}
-	if req.StartDateMin != nil {
-		query = query.Where("start_date >= ?", *req.StartDateMin)
-	}
-	if req.StartDateMax != nil {
-		query = query.Where("start_date <= ?", *req.StartDateMax)
-	}
-	if req.EndDateMin != nil {
-		query = query.Where("end_date >= ?", *req.EndDateMin)
-	}
-	if req.EndDateMax != nil {
-		query = query.Where("end_date <= ?", *req.EndDateMax)
-	}
-	return query
 }
 
 // UpdateCampaign updates an existing campaign

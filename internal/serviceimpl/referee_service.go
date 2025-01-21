@@ -62,22 +62,7 @@ func (s *refereeService) GetReferees(req request.GetRefereeRequest) ([]models.Re
 	// Start query
 	query := s.DB.Model(&models.Referee{})
 
-	// Apply filters
-	if req.Projects != nil && len(req.Projects) > 0 {
-		query = query.Where("project IN (?)", req.Projects)
-	}
-	if req.ID != nil {
-		query = query.Where("id = ?", *req.ID)
-	}
-	if req.ReferenceID != nil {
-		query = query.Where("reference_id = ?", *req.ReferenceID)
-	}
-	if req.ReferrerID != nil {
-		query = query.Where("referrer_id = ?", *req.ReferrerID)
-	}
-	if req.ReferrerReferenceID != nil {
-		query = query.Where("referrer_reference_id = ?", *req.ReferrerReferenceID)
-	}
+	query = request.ApplyGetRefereeRequest(req, query)
 
 	// Calculate total count before applying pagination
 	countQuery := query
@@ -101,21 +86,8 @@ func (s *refereeService) GetTotalReferees(req request.GetRefereeRequest) (int64,
 
 	// Build the query
 	query := s.DB.Model(&models.Referee{})
-	if req.Projects != nil && len(req.Projects) > 0 {
-		query = query.Where("project IN (?)", req.Projects)
-	}
-	if req.ID != nil {
-		query = query.Where("id = ?", *req.ID)
-	}
-	if req.ReferenceID != nil {
-		query = query.Where("reference_id = ?", *req.ReferenceID)
-	}
-	if req.ReferrerID != nil {
-		query = query.Where("referrer_id = ?", *req.ReferrerID)
-	}
-	if req.ReferrerReferenceID != nil {
-		query = query.Where("referrer_reference_id = ?", *req.ReferrerReferenceID)
-	}
+
+	query = request.ApplyGetRefereeRequest(req, query)
 
 	// Count the records
 	if err := query.Count(&count).Error; err != nil {

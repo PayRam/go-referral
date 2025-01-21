@@ -89,28 +89,7 @@ func (s *referrerService) GetReferrers(req request.GetReferrerRequest) ([]models
 	// Start query
 	query := s.DB.Model(&models.Referrer{})
 
-	// Apply filters
-	if req.Projects != nil && len(req.Projects) > 0 {
-		query = query.Where("project IN (?)", req.Projects)
-	}
-	if req.ID != nil {
-		query = query.Where("id = ?", *req.ID)
-	}
-	if req.ReferenceID != nil {
-		query = query.Where("reference_id = ?", *req.ReferenceID)
-	}
-	if req.Email != nil {
-		query = query.Where("email = ?", *req.Email)
-	}
-	if req.Code != nil {
-		query = query.Where("code = ?", *req.Code)
-	}
-	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
-		// Join with referral_referrer_campaigns table to filter by CampaignIDs
-		query = query.Joins("JOIN referral_referrer_campaigns rc ON rc.referrer_id = referral_referrer.id").
-			Where("rc.campaign_id IN (?)", req.CampaignIDs).
-			Group("referral_referrer.id") // Avoid duplicates due to the JOIN
-	}
+	query = request.ApplyGetReferrerRequest(req, query)
 
 	// Calculate total count before applying pagination
 	countQuery := query
@@ -195,24 +174,59 @@ func (s *referrerService) UpdateReferrer(project, referenceID string, req reques
 	return updatedReferrer, nil
 }
 
+func (s *referrerService) UpdateReferrerStatus(project, id uint, newStatus string) (*models.Referrer, error) {
+	var referrer models.Referrer
+
+	// Validate newStatus
+	if newStatus != "active" && newStatus != "inactive" {
+		return nil, fmt.Errorf("invalid new status: must be 'active' or 'inactive'")
+	}
+
+	// Use transaction to lock the row
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		// Fetch the referrer with a row lock
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("project = ? AND id = ?", project, id).First(&referrer).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("referrer not found")
+			}
+			return fmt.Errorf("failed to fetch referrer: %w", err)
+		}
+
+		// Check if the status is already the desired status
+		if referrer.Status == newStatus {
+			return fmt.Errorf("referrer is already %s", newStatus)
+		}
+
+		// Update status
+		referrer.Status = newStatus
+
+		// Save the updated referrer
+		if err := tx.Save(&referrer).Error; err != nil {
+			return fmt.Errorf("failed to update referrer status: %w", err)
+		}
+
+		// Fetch the updated referrer with associated campaigns
+		if err := tx.Preload("Campaigns").First(&referrer, referrer.ID).Error; err != nil {
+			return fmt.Errorf("failed to preload campaigns for referrer: %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &referrer, nil
+}
+
 func (s *referrerService) GetTotalReferrers(req request.GetReferrerRequest) (int64, error) {
 	var count int64
 
 	// Build the query
 	query := s.DB.Model(&models.Referrer{})
-	// Apply filters
-	if req.Projects != nil && len(req.Projects) > 0 {
-		query = query.Where("project IN (?)", req.Projects)
-	}
-	if req.ID != nil {
-		query = query.Where("id = ?", *req.ID)
-	}
-	if req.ReferenceID != nil {
-		query = query.Where("reference_id = ?", *req.ReferenceID)
-	}
-	if req.Code != nil {
-		query = query.Where("code = ?", *req.Code)
-	}
+
+	query = request.ApplyGetReferrerRequest(req, query)
 
 	// Count the records
 	if err := query.Count(&count).Error; err != nil {

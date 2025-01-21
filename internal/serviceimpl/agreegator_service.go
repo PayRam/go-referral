@@ -23,52 +23,37 @@ func (s *aggregatorService) GetReferrersWithStats(req request.GetReferrerRequest
 	var totalCount int64
 
 	// Build base query for referrers
-	query := s.DB.Table("referral_referrer r").
+	query := s.DB.Table("referral_referrer").
 		Select(`
-			r.id AS id,
-			r.project AS project,
-			r.email AS email,
-			r.reference_id AS reference_id,
-			r.code AS code,
+			referral_referrer.id AS id,
+			referral_referrer.project AS project,
+			referral_referrer.email AS email,
+			referral_referrer.reference_id AS reference_id,
+			referral_referrer.code AS code,
 			COUNT(DISTINCT rr.id) AS referee_count,
 			COALESCE(SUM(re.amount), 0) AS total_rewards,
-			r.created_at AS created_at,
-			r.updated_at AS updated_at,
-			r.deleted_at AS deleted_at
+			referral_referrer.created_at AS created_at,
+			referral_referrer.updated_at AS updated_at,
+			referral_referrer.deleted_at AS deleted_at
 		`).
 		Joins(`
-			LEFT JOIN referral_referee rr ON r.id = rr.referrer_id AND r.project = rr.project
+			LEFT JOIN referral_referee rr ON referral_referrer.id = rr.referrer_id AND referral_referrer.project = rr.project
 		`).
 		Joins(`
-			LEFT JOIN referral_rewards re ON r.id = re.referrer_id AND r.project = re.project
+			LEFT JOIN referral_rewards re ON referral_referrer.id = re.referrer_id AND referral_referrer.project = re.project
 		`)
 
 	// Apply campaign IDs filter if provided
 	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
 		query = query.Joins(`
-			JOIN referral_referrer_campaigns rc ON rc.referrer_id = r.id AND rc.project = r.project
+			JOIN referral_referrer_campaigns rc ON rc.referrer_id = referral_referrer.id AND rc.project = referral_referrer.project
 		`).Where("rc.campaign_id IN (?)", req.CampaignIDs)
 	}
 
 	// Group the results to avoid duplicates
-	query = query.Group("r.id, r.project, r.email, r.reference_id, r.code, r.created_at, r.updated_at, r.deleted_at")
+	query = query.Group("referral_referrer.id, referral_referrer.project, referral_referrer.email, referral_referrer.reference_id, referral_referrer.code, referral_referrer.created_at, referral_referrer.updated_at, referral_referrer.deleted_at")
 
-	// Apply filters from request
-	if req.Projects != nil && len(req.Projects) > 0 {
-		query = query.Where("r.project IN (?)", req.Projects)
-	}
-	if req.ID != nil {
-		query = query.Where("r.id = ?", *req.ID)
-	}
-	if req.ReferenceID != nil {
-		query = query.Where("r.reference_id = ?", *req.ReferenceID)
-	}
-	if req.Email != nil {
-		query = query.Where("email = ?", *req.Email)
-	}
-	if req.Code != nil {
-		query = query.Where("r.code = ?", *req.Code)
-	}
+	query = request.ApplyGetReferrerRequest(req, query)
 
 	// Calculate total count before applying pagination
 	countQuery := query
@@ -128,56 +113,33 @@ func (s *aggregatorService) GetRewardsStats(req request.GetRewardRequest) ([]res
 	}
 
 	// Construct the query
-	query := s.DB.Table("referral_rewards r").
+	query := s.DB.Table("referral_rewards").
 		Select(`
 			CASE 
 				WHEN 33 THEN printf('%s %d', 
-					substr('JanFebMarAprMayJunJulAugSepOctNovDec', (strftime('%m', r.created_at) - 1) * 3 + 1, 3),
-					CAST(strftime('%d', r.created_at) AS INTEGER))
+					substr('JanFebMarAprMayJunJulAugSepOctNovDec', (strftime('%m', created_at) - 1) * 3 + 1, 3),
+					CAST(strftime('%d', created_at) AS INTEGER))
 				WHEN 190 THEN printf('%s %d',
 					substr('JanFebMarAprMayJunJulAugSepOctNovDec',
-						(strftime('%m', r.created_at, 'weekday 1', '-7 days') - 1) * 3 + 1, 3),
-					CAST(strftime('%d', r.created_at, 'weekday 1', '-7 days') AS INTEGER))
+						(strftime('%m', created_at, 'weekday 1', '-7 days') - 1) * 3 + 1, 3),
+					CAST(strftime('%d', created_at, 'weekday 1', '-7 days') AS INTEGER))
 				ELSE printf('%s %d',
-					substr('JanFebMarAprMayJunJulAugSepOctNovDec', (strftime('%m', r.created_at) - 1) * 3 + 1, 3),
-					cast(strftime('%Y', r.created_at) as integer))
+					substr('JanFebMarAprMayJunJulAugSepOctNovDec', (strftime('%m', created_at) - 1) * 3 + 1, 3),
+					cast(strftime('%Y', created_at) as integer))
 			END AS date,
-			SUM(r.amount) AS total_rewards,
-			COUNT(DISTINCT r.referrer_reference_id) AS unique_referrers
+			SUM(amount) AS total_rewards,
+			COUNT(DISTINCT referrer_reference_id) AS unique_referrers
 		`).
 		Where(`
-			r.created_at BETWEEN
+			created_at BETWEEN
 				COALESCE(?, (SELECT MIN(created_at) FROM referral_rewards)) AND
 				COALESCE(?, (SELECT MAX(created_at) FROM referral_rewards))
 		`, req.PaginationConditions.StartDate, req.PaginationConditions.EndDate).
 		Group("date").
-		Order("r.created_at ASC")
+		Order("created_at ASC")
 
 	// Apply filters
-	if req.Projects != nil && len(req.Projects) > 0 {
-		query = query.Where("r.project IN (?)", req.Projects)
-	}
-	if req.ID != nil {
-		query = query.Where("r.id = ?", *req.ID)
-	}
-	if req.RefereeID != nil {
-		query = query.Where("r.referee_id = ?", *req.RefereeID)
-	}
-	if req.ReferrerID != nil {
-		query = query.Where("r.referrer_id = ?", *req.ReferrerID)
-	}
-	if req.ReferrerReferenceID != nil {
-		query = query.Where("r.referrer_reference_id = ?", *req.ReferrerReferenceID)
-	}
-	if req.ReferrerCode != nil {
-		query = query.Where("r.referrer_code = ?", *req.ReferrerCode)
-	}
-	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
-		query = query.Where("r.campaign_id IN (?)", req.CampaignIDs)
-	}
-	if req.Status != nil {
-		query = query.Where("r.status = ?", *req.Status)
-	}
+	query = request.ApplyGetRewardRequest(req, query)
 
 	// Execute the query
 	if err := query.Scan(&results).Error; err != nil {

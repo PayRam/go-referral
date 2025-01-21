@@ -70,11 +70,6 @@ func (w *worker) ProcessPendingEvents() error {
 		err := w.DB.Transaction(func(tx *gorm.DB) error {
 			// Fetch pending EventLogs for this campaign's events
 
-			//var events []models.Event
-			//if err := w.DB.Where("project = ?", campaign.Project).Find(&events).Error; err != nil {
-			//	return fmt.Errorf("failed to fetch events for project %s: %w", campaign.Project, err)
-			//}
-
 			eventKeys := getEventKeys(campaign.Events)
 			var eventLogs []models.EventLog
 			if err := tx.Where("project = ? AND status = ? AND event_key IN (?)", campaign.Project, "pending", eventKeys).
@@ -96,6 +91,10 @@ func (w *worker) ProcessPendingEvents() error {
 				var referee models.Referee
 				if err := tx.Preload("Referrer").Where("project = ? AND reference_id = ?", campaign.Project, refereeReferenceID).Find(&referee).Error; err != nil {
 					return fmt.Errorf("failed to fetch referee for project %s and reference_id %s: %w", campaign.Project, refereeReferenceID, err)
+				}
+
+				if referee.Referrer.Status != "active" {
+					continue
 				}
 
 				// Check if all campaign events are satisfied

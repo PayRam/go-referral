@@ -6,6 +6,7 @@ import (
 	"github.com/PayRam/go-referral/request"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
+	"time"
 )
 
 type rewardService struct {
@@ -72,33 +73,7 @@ func (s *rewardService) GetRewards(req request.GetRewardRequest) ([]models.Rewar
 	query := s.DB.Model(&models.Reward{})
 
 	// Apply filters
-	if req.Projects != nil && len(req.Projects) > 0 {
-		query = query.Where("project IN (?)", req.Projects)
-	}
-	if req.ID != nil {
-		query = query.Where("id = ?", *req.ID)
-	}
-	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
-		query = query.Where("campaign_id IN (?)", req.CampaignIDs)
-	}
-	if req.RefereeID != nil {
-		query = query.Where("referee_id = ?", *req.RefereeID)
-	}
-	if req.RefereeReferenceID != nil {
-		query = query.Where("referee_reference_id = ?", *req.RefereeReferenceID)
-	}
-	if req.ReferrerID != nil {
-		query = query.Where("referrer_id = ?", *req.ReferrerID)
-	}
-	if req.ReferrerReferenceID != nil {
-		query = query.Where("referrer_reference_id = ?", *req.ReferrerReferenceID)
-	}
-	if req.ReferrerCode != nil {
-		query = query.Where("referrer_code = ?", *req.ReferrerCode)
-	}
-	if req.Status != nil {
-		query = query.Where("status = ?", *req.Status)
-	}
+	query = request.ApplyGetRewardRequest(req, query)
 
 	// Calculate total count before applying pagination
 	countQuery := query
@@ -115,4 +90,123 @@ func (s *rewardService) GetRewards(req request.GetRewardRequest) ([]models.Rewar
 	}
 
 	return rewards, count, nil
+}
+
+func (s *rewardService) GetNewReferrerCount(req request.GetRewardRequest) (int64, error) {
+	var count int64
+
+	// Fetch start and end dates if not provided
+	if req.PaginationConditions.StartDate == nil || req.PaginationConditions.EndDate == nil {
+		var dateRangeStartStr, dateRangeEndStr string
+
+		// Fetch the earliest and latest created_at values from the database
+		if err := s.DB.Table("referral_rewards").Select("MIN(created_at)").Row().Scan(&dateRangeStartStr); err != nil {
+			return 0, fmt.Errorf("failed to fetch earliest created_at date: %w", err)
+		}
+		if err := s.DB.Table("referral_rewards").Select("MAX(created_at)").Row().Scan(&dateRangeEndStr); err != nil {
+			return 0, fmt.Errorf("failed to fetch latest created_at date: %w", err)
+		}
+
+		parseTimestamp := func(ts string) (*time.Time, error) {
+			parsed, err := time.Parse("2006-01-02 15:04:05-07:00", ts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse timestamp: %w", err)
+			}
+			return &parsed, nil
+		}
+
+		if req.PaginationConditions.StartDate == nil {
+			parsed, err := parseTimestamp(dateRangeStartStr)
+			if err != nil {
+				return 0, fmt.Errorf("failed to parse earliest created_at date: %w", err)
+			}
+			req.PaginationConditions.StartDate = parsed
+		}
+		if req.PaginationConditions.EndDate == nil {
+			parsed, err := parseTimestamp(dateRangeEndStr)
+			if err != nil {
+				return 0, fmt.Errorf("failed to parse latest created_at date: %w", err)
+			}
+			req.PaginationConditions.EndDate = parsed
+		}
+	}
+
+	// Query to find unique ReferrerReferenceID within the provided date range
+	subQuery := s.DB.Table("referral_rewards").
+		Select("referrer_reference_id").
+		Where("created_at < ?", req.PaginationConditions.StartDate)
+
+	query := s.DB.Table("referral_rewards r").
+		Distinct("r.referrer_reference_id").
+		Where("r.created_at BETWEEN ? AND ?", req.PaginationConditions.StartDate, req.PaginationConditions.EndDate).
+		Where("r.referrer_reference_id NOT IN (?)", subQuery)
+
+	query = request.ApplyGetRewardRequest(req, query)
+
+	// Execute the query to count distinct new referrer_reference_ids
+	if err := query.Count(&count).Error; err != nil {
+		return 0, fmt.Errorf("failed to count new referrer_reference_ids: %w", err)
+	}
+
+	return count, nil
+}
+
+func (s *rewardService) GetNewRefereeCount(req request.GetRewardRequest) (int64, error) {
+	var count int64
+
+	// Fetch start and end dates if not provided
+	if req.PaginationConditions.StartDate == nil || req.PaginationConditions.EndDate == nil {
+		var dateRangeStartStr, dateRangeEndStr string
+
+		// Fetch the earliest and latest created_at values from the database
+		if err := s.DB.Table("referral_rewards").Select("MIN(created_at)").Row().Scan(&dateRangeStartStr); err != nil {
+			return 0, fmt.Errorf("failed to fetch earliest created_at date: %w", err)
+		}
+		if err := s.DB.Table("referral_rewards").Select("MAX(created_at)").Row().Scan(&dateRangeEndStr); err != nil {
+			return 0, fmt.Errorf("failed to fetch latest created_at date: %w", err)
+		}
+
+		parseTimestamp := func(ts string) (*time.Time, error) {
+			parsed, err := time.Parse("2006-01-02 15:04:05-07:00", ts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse timestamp: %w", err)
+			}
+			return &parsed, nil
+		}
+
+		if req.PaginationConditions.StartDate == nil {
+			parsed, err := parseTimestamp(dateRangeStartStr)
+			if err != nil {
+				return 0, fmt.Errorf("failed to parse earliest created_at date: %w", err)
+			}
+			req.PaginationConditions.StartDate = parsed
+		}
+		if req.PaginationConditions.EndDate == nil {
+			parsed, err := parseTimestamp(dateRangeEndStr)
+			if err != nil {
+				return 0, fmt.Errorf("failed to parse latest created_at date: %w", err)
+			}
+			req.PaginationConditions.EndDate = parsed
+		}
+	}
+
+	// Query to find unique RefereeReferenceID within the provided date range
+	subQuery := s.DB.Table("referral_rewards").
+		Select("referee_reference_id").
+		Where("created_at < ?", req.PaginationConditions.StartDate)
+
+	query := s.DB.Table("referral_rewards r").
+		Distinct("r.referee_reference_id").
+		Where("r.created_at BETWEEN ? AND ?", req.PaginationConditions.StartDate, req.PaginationConditions.EndDate).
+		Where("r.referee_reference_id NOT IN (?)", subQuery)
+
+	// Apply filters
+	query = request.ApplyGetRewardRequest(req, query)
+
+	// Execute the query to count distinct new referee_reference_ids
+	if err := query.Count(&count).Error; err != nil {
+		return 0, fmt.Errorf("failed to count new referee_reference_ids: %w", err)
+	}
+
+	return count, nil
 }

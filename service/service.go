@@ -31,6 +31,7 @@ type ReferrerService interface {
 	GetReferrers(req request.GetReferrerRequest) ([]models.Referrer, int64, error)
 	GetTotalReferrers(req request.GetReferrerRequest) (int64, error)
 	UpdateReferrer(project, referenceID string, request request.UpdateReferrerRequest) (*models.Referrer, error)
+	UpdateReferrerStatus(project, id uint, newStatus string) (*models.Referrer, error)
 }
 
 // RefereeService handles operations related to referral codes
@@ -48,6 +49,8 @@ type EventLogService interface {
 type RewardService interface {
 	GetTotalRewards(request request.GetRewardRequest) (decimal.Decimal, error)
 	GetRewards(req request.GetRewardRequest) ([]models.Reward, int64, error)
+	GetNewReferrerCount(req request.GetRewardRequest) (int64, error)
+	GetNewRefereeCount(req request.GetRewardRequest) (int64, error)
 }
 
 type AggregatorService interface {

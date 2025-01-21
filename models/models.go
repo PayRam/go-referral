@@ -74,7 +74,8 @@ type Referrer struct {
 	Project     string     `gorm:"size:100;not null;uniqueIndex:idx_referrer_project_reference_id"` // Composite key with ReferenceID
 	ReferenceID string     `gorm:"size:100;not null;uniqueIndex:idx_referrer_project_reference_id"` // Composite key with Project
 	Email       *string    `gorm:"size:100;"`
-	Code        string     `gorm:"size:50;uniqueIndex;not null"` // Unique referral code
+	Code        string     `gorm:"size:50;uniqueIndex;not null"`   // Unique referral code
+	Status      string     `gorm:"size:50;default:'active';index"` // New field to track campaign status (e.g., 'active', 'paused', 'archived')
 	Campaigns   []Campaign `gorm:"many2many:referral_referrer_campaigns;joinForeignKey:ReferrerID;joinReferences:CampaignID"`
 }
 

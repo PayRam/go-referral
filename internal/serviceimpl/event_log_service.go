@@ -65,25 +65,7 @@ func (s *eventLogService) GetEventLogs(req request.GetEventLogRequest) ([]models
 	// Start query
 	query := s.DB.Model(&models.EventLog{})
 
-	// Apply filters
-	if req.Projects != nil && len(req.Projects) > 0 {
-		query = query.Where("project IN (?)", req.Projects)
-	}
-	if req.ID != nil {
-		query = query.Where("id = ?", *req.ID)
-	}
-	if req.EventKey != nil {
-		query = query.Where("event_key = ?", *req.EventKey)
-	}
-	if req.ReferenceID != nil {
-		query = query.Where("reference_id = ?", *req.ReferenceID)
-	}
-	if req.Status != nil {
-		query = query.Where("status = ?", *req.Status)
-	}
-	if req.RewardID != nil {
-		query = query.Where("reward_id = ?", *req.RewardID)
-	}
+	query = request.ApplyGetEventLogRequest(req, query)
 
 	// Calculate total count before applying pagination
 	countQuery := query
