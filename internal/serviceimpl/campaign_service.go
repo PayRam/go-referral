@@ -249,8 +249,8 @@ func (s *campaignService) GetTotalCampaigns(req request.GetCampaignsRequest) (in
 
 func getCampaignRequestQueryParams(req request.GetCampaignsRequest, query *gorm.DB) *gorm.DB {
 	// Apply filters
-	if req.Project != nil {
-		query = query.Where("project = ?", *req.Project)
+	if req.Projects != nil && len(req.Projects) > 0 {
+		query = query.Where("project IN (?)", req.Projects)
 	}
 	if req.ID != nil {
 		query = query.Where("id = ?", *req.ID)

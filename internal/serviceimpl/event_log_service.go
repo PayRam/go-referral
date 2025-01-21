@@ -66,8 +66,8 @@ func (s *eventLogService) GetEventLogs(req request.GetEventLogRequest) ([]models
 	query := s.DB.Model(&models.EventLog{})
 
 	// Apply filters
-	if req.Project != nil {
-		query = query.Where("project = ?", *req.Project)
+	if req.Projects != nil && len(req.Projects) > 0 {
+		query = query.Where("project IN (?)", req.Projects)
 	}
 	if req.ID != nil {
 		query = query.Where("id = ?", *req.ID)

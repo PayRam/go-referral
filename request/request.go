@@ -132,7 +132,7 @@ type CreateRefereeRequest struct {
 }
 
 type GetEventsRequest struct {
-	Project              *string              `json:"project"`              // Filter by name
+	Projects             []string             `json:"projects"`             // Filter by name
 	ID                   *uint                `json:"id"`                   // Filter by ID
 	Key                  *string              `json:"key"`                  // Filter by name
 	Name                 *string              `json:"name"`                 // Filter by name
@@ -141,7 +141,7 @@ type GetEventsRequest struct {
 }
 
 type GetCampaignsRequest struct {
-	Project              *string              `json:"project"`   // Filter by name
+	Projects             []string             `json:"projects"`  // Filter by name
 	ID                   *uint                `json:"id"`        // Filter by ID
 	Name                 *string              `json:"name"`      // Filter by name
 	Status               *string              `json:"status"`    // Filter by active status
@@ -154,7 +154,7 @@ type GetCampaignsRequest struct {
 }
 
 type GetReferrerRequest struct {
-	Project              *string              `json:"project"`     // Filter by name
+	Projects             []string             `json:"projects"`    // Filter by name
 	ID                   *uint                `json:"id"`          // Filter by ID
 	ReferenceID          *string              `json:"referenceID"` // Composite key with Project
 	Code                 *string              `json:"code"`
@@ -162,7 +162,7 @@ type GetReferrerRequest struct {
 }
 
 type GetRefereeRequest struct {
-	Project              *string              `json:"project"`              // Filter by name
+	Projects             []string             `json:"projects"`             // Filter by name
 	ID                   *uint                `json:"id"`                   // Filter by ID
 	ReferenceID          *string              `json:"referenceID"`          // Composite key with Project
 	ReferrerReferenceID  *string              `json:"referrerReferenceID"`  // Composite key with Project
@@ -171,7 +171,7 @@ type GetRefereeRequest struct {
 }
 
 type GetRewardRequest struct {
-	Project              *string              `json:"project"`              // Filter by name
+	Projects             []string             `json:"projects"`             // Filter by name
 	ID                   *uint                `json:"id"`                   // Filter by ID
 	CampaignID           *uint                `json:"campaignID"`           // Filter by ID
 	RefereeID            *uint                `json:"refereeID"`            // Filter by ID
@@ -184,8 +184,8 @@ type GetRewardRequest struct {
 }
 
 type GetEventLogRequest struct {
-	Project              *string              `json:"project"` // Filter by name
-	ID                   *uint                `json:"id"`      // Filter by ID
+	Projects             []string             `json:"projects"` // Filter by name
+	ID                   *uint                `json:"id"`       // Filter by ID
 	EventKey             *string              `json:"eventKey"`
 	ReferenceID          *string              `json:"referenceID"`
 	Status               *string              `json:"status"`               // Composite key with Project

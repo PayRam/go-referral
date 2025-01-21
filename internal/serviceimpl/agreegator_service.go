@@ -43,8 +43,8 @@ func (s *aggregatorService) GetReferrersWithStats(req request.GetReferrerRequest
 		Group("r.id, r.project, r.reference_id, r.code, r.created_at, r.updated_at, r.deleted_at")
 
 	// Apply filters from request
-	if req.Project != nil {
-		query = query.Where("r.project = ?", *req.Project)
+	if req.Projects != nil && len(req.Projects) > 0 {
+		query = query.Where("r.project IN (?)", req.Projects)
 	}
 	if req.ID != nil {
 		query = query.Where("r.id = ?", *req.ID)

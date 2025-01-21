@@ -128,8 +128,8 @@ func (s *eventService) GetEvents(req request.GetEventsRequest) ([]models.Event, 
 	query := s.DB.Model(&models.Event{})
 
 	// Apply filters
-	if req.Project != nil {
-		query = query.Where("project = ?", *req.Project)
+	if req.Projects != nil && len(req.Projects) > 0 {
+		query = query.Where("project IN (?)", req.Projects)
 	}
 	if req.ID != nil {
 		query = query.Where("id = ?", *req.ID)

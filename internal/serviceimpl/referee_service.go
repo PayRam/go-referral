@@ -63,8 +63,8 @@ func (s *refereeService) GetReferees(req request.GetRefereeRequest) ([]models.Re
 	query := s.DB.Model(&models.Referee{})
 
 	// Apply filters
-	if req.Project != nil {
-		query = query.Where("project = ?", *req.Project)
+	if req.Projects != nil && len(req.Projects) > 0 {
+		query = query.Where("project IN (?)", req.Projects)
 	}
 	if req.ID != nil {
 		query = query.Where("id = ?", *req.ID)
@@ -101,8 +101,8 @@ func (s *refereeService) GetTotalReferees(req request.GetRefereeRequest) (int64,
 
 	// Build the query
 	query := s.DB.Model(&models.Referee{})
-	if req.Project != nil {
-		query = query.Where("project = ?", *req.Project)
+	if req.Projects != nil && len(req.Projects) > 0 {
+		query = query.Where("project IN (?)", req.Projects)
 	}
 	if req.ID != nil {
 		query = query.Where("id = ?", *req.ID)

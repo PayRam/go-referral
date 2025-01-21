@@ -111,8 +111,8 @@ func createReferrer(t *testing.T, project, referrerUser string, campaignIDs []ui
 
 func createReferee(t *testing.T, project, code, refereeUser string, email *string) *models.Referee {
 	req := request.GetReferrerRequest{
-		Project: &project,
-		Code:    &code,
+		Projects: []string{project},
+		Code:     &code,
 	}
 
 	referrers, _, err := referralService.Referrers.GetReferrers(req)
@@ -255,7 +255,7 @@ func TestOneTimeCampaign(t *testing.T) {
 	assert.NoError(t, err)
 
 	req := request.GetRewardRequest{
-		Project:             &project,
+		Projects:            []string{project},
 		ReferrerReferenceID: &referrerUser,
 		PaginationConditions: request.PaginationConditions{
 			SortBy: utils.StringPtr("id"),
@@ -279,7 +279,7 @@ func TestOneTimeCampaign(t *testing.T) {
 	assert.Equal(t, expectedReward.String(), rewards[0].Amount.String())
 
 	elreq := request.GetEventLogRequest{
-		Project:     &project,
+		Projects:    []string{project},
 		ReferenceID: &refereeUser,
 		PaginationConditions: request.PaginationConditions{
 			SortBy: utils.StringPtr("id"),
@@ -352,7 +352,7 @@ func TestRecurringCampaignWithRewardCapAndLimitedBudget(t *testing.T) {
 	assert.NoError(t, err)
 
 	req := request.GetRewardRequest{
-		Project:             &project,
+		Projects:            []string{project},
 		ReferrerReferenceID: &referrerUser,
 		PaginationConditions: request.PaginationConditions{
 			SortBy: utils.StringPtr("id"),
@@ -378,7 +378,7 @@ func TestRecurringCampaignWithRewardCapAndLimitedBudget(t *testing.T) {
 	assert.Equal(t, expectedReward2.String(), rewards[1].Amount.String())
 
 	elreq := request.GetEventLogRequest{
-		Project:     &project,
+		Projects:    []string{project},
 		ReferenceID: &refereeUser,
 		PaginationConditions: request.PaginationConditions{
 			SortBy: utils.StringPtr("id"),
@@ -444,7 +444,7 @@ func TestRecurringCampaignWithMaxOccurrencesPerCustomer(t *testing.T) {
 	assert.NoError(t, err)
 
 	req := request.GetRewardRequest{
-		Project:             &project,
+		Projects:            []string{project},
 		ReferrerReferenceID: &referrerUser,
 		PaginationConditions: request.PaginationConditions{
 			SortBy: utils.StringPtr("id"),
@@ -470,7 +470,7 @@ func TestRecurringCampaignWithMaxOccurrencesPerCustomer(t *testing.T) {
 	assert.Equal(t, expectedReward2.String(), rewards[1].Amount.String())
 
 	elreq := request.GetEventLogRequest{
-		Project:     &project,
+		Projects:    []string{project},
 		ReferenceID: &refereeUser,
 		PaginationConditions: request.PaginationConditions{
 			SortBy: utils.StringPtr("id"),

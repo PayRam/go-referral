@@ -25,8 +25,8 @@ func (s *rewardService) GetTotalRewards(request request.GetRewardRequest) (decim
 	query := s.DB.Model(&models.Reward{}).Select("SUM(amount)")
 
 	// Apply filters
-	if request.Project != nil {
-		query = query.Where("project = ?", *request.Project)
+	if request.Projects != nil && len(request.Projects) > 0 {
+		query = query.Where("project IN (?)", request.Projects)
 	}
 	if request.ID != nil {
 		query = query.Where("id = ?", *request.ID)
@@ -70,8 +70,8 @@ func (s *rewardService) GetRewards(req request.GetRewardRequest) ([]models.Rewar
 	query := s.DB.Model(&models.Reward{})
 
 	// Apply filters
-	if req.Project != nil {
-		query = query.Where("project = ?", *req.Project)
+	if req.Projects != nil && len(req.Projects) > 0 {
+		query = query.Where("project IN (?)", req.Projects)
 	}
 	if req.ID != nil {
 		query = query.Where("id = ?", *req.ID)
