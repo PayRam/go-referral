@@ -82,7 +82,6 @@ func (s *referrerService) CreateReferrer(project string, req request.CreateRefer
 
 	return referrer, nil
 }
-
 func (s *referrerService) GetReferrers(req request.GetReferrerRequest) ([]models.Referrer, int64, error) {
 	var referrers []models.Referrer
 	var count int64
@@ -100,8 +99,17 @@ func (s *referrerService) GetReferrers(req request.GetReferrerRequest) ([]models
 	if req.ReferenceID != nil {
 		query = query.Where("reference_id = ?", *req.ReferenceID)
 	}
+	if req.Email != nil {
+		query = query.Where("email = ?", *req.Email)
+	}
 	if req.Code != nil {
 		query = query.Where("code = ?", *req.Code)
+	}
+	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
+		// Join with referral_referrer_campaigns table to filter by CampaignIDs
+		query = query.Joins("JOIN referral_referrer_campaigns rc ON rc.referrer_id = referral_referrer.id").
+			Where("rc.campaign_id IN (?)", req.CampaignIDs).
+			Group("referral_referrer.id") // Avoid duplicates due to the JOIN
 	}
 
 	// Calculate total count before applying pagination

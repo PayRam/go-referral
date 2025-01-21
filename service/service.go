@@ -52,6 +52,7 @@ type RewardService interface {
 
 type AggregatorService interface {
 	GetReferrersWithStats(req request.GetReferrerRequest) ([]response.ReferrerStats, int64, error)
+	GetRewardsStats(req request.GetRewardRequest) ([]response.RewardStats, error)
 }
 
 type RewardCalculator interface {

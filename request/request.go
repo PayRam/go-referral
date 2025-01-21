@@ -18,6 +18,8 @@ type PaginationConditions struct {
 	CreatedBefore *time.Time `form:"createdBefore"` // Filter records created before this date
 	UpdatedAfter  *time.Time `form:"updatedAfter"`  // Filter records updated after this date
 	UpdatedBefore *time.Time `form:"updatedBefore"` // Filter records updated before this date
+	StartDate     *time.Time `form:"startDate"`     // Filter records created after this date
+	EndDate       *time.Time `form:"endDate"`       // Filter records created after this date
 }
 
 func ApplyPaginationConditions(query *gorm.DB, conditions PaginationConditions) *gorm.DB {
@@ -46,6 +48,13 @@ func ApplyPaginationConditions(query *gorm.DB, conditions PaginationConditions) 
 	}
 	if conditions.UpdatedBefore != nil {
 		query = query.Where("updated_at <= ?", *conditions.UpdatedBefore)
+	}
+
+	if conditions.StartDate != nil {
+		query = query.Where("created_at >= ?", *conditions.StartDate)
+	}
+	if conditions.EndDate != nil {
+		query = query.Where("created_at <= ?", *conditions.EndDate)
 	}
 
 	// Apply sorting
@@ -175,7 +184,9 @@ type GetReferrerRequest struct {
 	Projects             []string             `form:"projects"`    // Filter by name
 	ID                   *uint                `form:"id"`          // Filter by ID
 	ReferenceID          *string              `form:"referenceID"` // Composite key with Project
+	Email                *string              `form:"email"`       // Composite key with Project
 	Code                 *string              `form:"code"`
+	CampaignIDs          []uint               `form:"campaignIDs"`
 	PaginationConditions PaginationConditions `form:"paginationConditions"` // Embedded pagination and sorting struct
 }
 
@@ -191,13 +202,13 @@ type GetRefereeRequest struct {
 type GetRewardRequest struct {
 	Projects             []string             `form:"projects"`             // Filter by name
 	ID                   *uint                `form:"id"`                   // Filter by ID
-	CampaignID           *uint                `form:"campaignID"`           // Filter by ID
 	RefereeID            *uint                `form:"refereeID"`            // Filter by ID
 	RefereeReferenceID   *string              `form:"refereeReferenceID"`   // Composite key with Project
 	ReferrerID           *uint                `form:"referrerID"`           // Filter by ID
 	ReferrerReferenceID  *string              `form:"referrerReferenceID"`  // Composite key with Project
 	ReferrerCode         *string              `form:"referrerCode"`         // Composite key with Project
 	Status               *string              `form:"status"`               // Composite key with Project
+	CampaignIDs          []uint               `form:"campaignIDs"`          // Filter by ID
 	PaginationConditions PaginationConditions `form:"paginationConditions"` // Embedded pagination and sorting struct
 }
 

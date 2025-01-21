@@ -18,40 +18,42 @@ func NewRewardService(db *gorm.DB) *rewardService {
 	return &rewardService{DB: db}
 }
 
-func (s *rewardService) GetTotalRewards(request request.GetRewardRequest) (decimal.Decimal, error) {
+func (s *rewardService) GetTotalRewards(req request.GetRewardRequest) (decimal.Decimal, error) {
 	var totalAmount decimal.Decimal
 
 	// Build the query
 	query := s.DB.Model(&models.Reward{}).Select("SUM(amount)")
 
 	// Apply filters
-	if request.Projects != nil && len(request.Projects) > 0 {
-		query = query.Where("project IN (?)", request.Projects)
+	if req.Projects != nil && len(req.Projects) > 0 {
+		query = query.Where("project IN (?)", req.Projects)
 	}
-	if request.ID != nil {
-		query = query.Where("id = ?", *request.ID)
+	if req.ID != nil {
+		query = query.Where("id = ?", *req.ID)
 	}
-	if request.CampaignID != nil {
-		query = query.Where("campaign_id = ?", *request.CampaignID)
+	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
+		query = query.Where("campaign_id IN (?)", req.CampaignIDs)
 	}
-	if request.RefereeID != nil {
-		query = query.Where("referee_id = ?", *request.RefereeID)
+	if req.RefereeID != nil {
+		query = query.Where("referee_id = ?", *req.RefereeID)
 	}
-	if request.RefereeReferenceID != nil {
-		query = query.Where("referee_reference_id = ?", *request.RefereeReferenceID)
+	if req.RefereeReferenceID != nil {
+		query = query.Where("referee_reference_id = ?", *req.RefereeReferenceID)
 	}
-	if request.ReferrerID != nil {
-		query = query.Where("referrer_id = ?", *request.ReferrerID)
+	if req.ReferrerID != nil {
+		query = query.Where("referrer_id = ?", *req.ReferrerID)
 	}
-	if request.ReferrerReferenceID != nil {
-		query = query.Where("referrer_reference_id = ?", *request.ReferrerReferenceID)
+	if req.ReferrerReferenceID != nil {
+		query = query.Where("referrer_reference_id = ?", *req.ReferrerReferenceID)
 	}
-	if request.ReferrerCode != nil {
-		query = query.Where("referrer_code = ?", *request.ReferrerCode)
+	if req.ReferrerCode != nil {
+		query = query.Where("referrer_code = ?", *req.ReferrerCode)
 	}
-	if request.Status != nil {
-		query = query.Where("status = ?", *request.Status)
+	if req.Status != nil {
+		query = query.Where("status = ?", *req.Status)
 	}
+
+	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
 	// Calculate the sum
 	if err := query.Scan(&totalAmount).Error; err != nil {
@@ -76,8 +78,8 @@ func (s *rewardService) GetRewards(req request.GetRewardRequest) ([]models.Rewar
 	if req.ID != nil {
 		query = query.Where("id = ?", *req.ID)
 	}
-	if req.CampaignID != nil {
-		query = query.Where("campaign_id = ?", *req.CampaignID)
+	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
+		query = query.Where("campaign_id IN (?)", req.CampaignIDs)
 	}
 	if req.RefereeID != nil {
 		query = query.Where("referee_id = ?", *req.RefereeID)

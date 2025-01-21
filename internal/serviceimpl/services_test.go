@@ -508,4 +508,16 @@ func TestAggregator(t *testing.T) {
 	assert.Equal(t, "recumaxoccurrenceproject", stats[2].Project)
 	assert.Equal(t, int64(1), stats[2].RefereeCount)
 	assert.Equal(t, "217.33771321", stats[2].TotalRewards.String())
+
+	rewardsStats, err := referralService.AggregatorService.GetRewardsStats(request.GetRewardRequest{})
+	if err != nil {
+		log.Fatalf("failed to fetch rewards stats: %v", err)
+	}
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(rewardsStats))
+
+	//print reward stats
+	for _, reward := range rewardsStats {
+		log.Printf("*********************** Reward: %v", reward)
+	}
 }

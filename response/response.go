@@ -16,3 +16,9 @@ type ReferrerStats struct {
 	CreatedAt    time.Time       `json:"createdAt"`
 	UpdatedAt    time.Time       `json:"updatedAt"`
 }
+
+type RewardStats struct {
+	Date            string          `json:"date"`
+	TotalRewards    decimal.Decimal `json:"totalRewards"`
+	UniqueReferrers int64           `json:"uniqueReferrers"`
+}
