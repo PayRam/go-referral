@@ -8,12 +8,16 @@ import (
 )
 
 type PaginationConditions struct {
-	Limit         *int    `json:"limit"`           // Pagination limit
-	Offset        *int    `json:"offset"`          // Pagination offset (optional when using ID-based)
-	SortBy        *string `json:"sort_by"`         // Field to sort by
-	Order         *string `json:"order"`           // ASC or DESC
-	GreaterThanID *uint   `json:"greater_than_id"` // For ID-based pagination
-	LessThanID    *uint   `json:"less_than_id"`    // For reverse ID-based pagination
+	Limit         *int       `json:"limit"`           // Pagination limit
+	Offset        *int       `json:"offset"`          // Pagination offset (optional when using ID-based)
+	SortBy        *string    `json:"sort_by"`         // Field to sort by
+	Order         *string    `json:"order"`           // ASC or DESC
+	GreaterThanID *uint      `json:"greater_than_id"` // For ID-based pagination
+	LessThanID    *uint      `json:"less_than_id"`    // For reverse ID-based pagination
+	CreatedAfter  *time.Time `json:"created_after"`   // Filter records created after this date
+	CreatedBefore *time.Time `json:"created_before"`  // Filter records created before this date
+	UpdatedAfter  *time.Time `json:"updated_after"`   // Filter records updated after this date
+	UpdatedBefore *time.Time `json:"updated_before"`  // Filter records updated before this date
 }
 
 func ApplyPaginationConditions(query *gorm.DB, conditions PaginationConditions) *gorm.DB {
@@ -28,6 +32,20 @@ func ApplyPaginationConditions(query *gorm.DB, conditions PaginationConditions) 
 	}
 	if conditions.LessThanID != nil {
 		query = query.Where("id < ?", *conditions.LessThanID)
+	}
+
+	// Apply date filters
+	if conditions.CreatedAfter != nil {
+		query = query.Where("created_at >= ?", *conditions.CreatedAfter)
+	}
+	if conditions.CreatedBefore != nil {
+		query = query.Where("created_at <= ?", *conditions.CreatedBefore)
+	}
+	if conditions.UpdatedAfter != nil {
+		query = query.Where("updated_at >= ?", *conditions.UpdatedAfter)
+	}
+	if conditions.UpdatedBefore != nil {
+		query = query.Where("updated_at <= ?", *conditions.UpdatedBefore)
 	}
 
 	// Apply sorting
