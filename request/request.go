@@ -8,16 +8,16 @@ import (
 )
 
 type PaginationConditions struct {
-	Limit         *int       `json:"limit"`           // Pagination limit
-	Offset        *int       `json:"offset"`          // Pagination offset (optional when using ID-based)
-	SortBy        *string    `json:"sort_by"`         // Field to sort by
-	Order         *string    `json:"order"`           // ASC or DESC
-	GreaterThanID *uint      `json:"greater_than_id"` // For ID-based pagination
-	LessThanID    *uint      `json:"less_than_id"`    // For reverse ID-based pagination
-	CreatedAfter  *time.Time `json:"created_after"`   // Filter records created after this date
-	CreatedBefore *time.Time `json:"created_before"`  // Filter records created before this date
-	UpdatedAfter  *time.Time `json:"updated_after"`   // Filter records updated after this date
-	UpdatedBefore *time.Time `json:"updated_before"`  // Filter records updated before this date
+	Limit         *int       `form:"limit"`         // Pagination limit
+	Offset        *int       `form:"offset"`        // Pagination offset (optional when using ID-based)
+	SortBy        *string    `form:"sortBy"`        // Field to sort by
+	Order         *string    `form:"order"`         // ASC or DESC
+	GreaterThanID *uint      `form:"greaterThanID"` // For ID-based pagination
+	LessThanID    *uint      `form:"lessThanID"`    // For reverse ID-based pagination
+	CreatedAfter  *time.Time `form:"createdAfter"`  // Filter records created after this date
+	CreatedBefore *time.Time `form:"createdBefore"` // Filter records created before this date
+	UpdatedAfter  *time.Time `form:"updatedAfter"`  // Filter records updated after this date
+	UpdatedBefore *time.Time `form:"updatedBefore"` // Filter records updated before this date
 }
 
 func ApplyPaginationConditions(query *gorm.DB, conditions PaginationConditions) *gorm.DB {
@@ -150,63 +150,63 @@ type CreateRefereeRequest struct {
 }
 
 type GetEventsRequest struct {
-	Projects             []string             `json:"projects"`             // Filter by name
-	ID                   *uint                `json:"id"`                   // Filter by ID
-	Key                  *string              `json:"key"`                  // Filter by name
-	Name                 *string              `json:"name"`                 // Filter by name
-	EventType            *string              `json:"eventType"`            // Filter by name
-	PaginationConditions PaginationConditions `json:"paginationConditions"` // Embedded pagination and sorting struct
+	Projects             []string             `form:"projects"`             // Filter by name
+	ID                   *uint                `form:"id"`                   // Filter by ID
+	Key                  *string              `form:"key"`                  // Filter by name
+	Name                 *string              `form:"name"`                 // Filter by name
+	EventType            *string              `form:"eventType"`            // Filter by name
+	PaginationConditions PaginationConditions `form:"paginationConditions"` // Embedded pagination and sorting struct
 }
 
 type GetCampaignsRequest struct {
-	Projects             []string             `json:"projects"`  // Filter by name
-	ID                   *uint                `json:"id"`        // Filter by ID
-	Name                 *string              `json:"name"`      // Filter by name
-	Status               *string              `json:"status"`    // Filter by active status
-	IsDefault            *bool                `json:"isDefault"` // Filter by active status
-	StartDateMin         *time.Time           `json:"startDateMin"`
-	StartDateMax         *time.Time           `json:"startDateMax"`
-	EndDateMin           *time.Time           `json:"endDateMin"`
-	EndDateMax           *time.Time           `json:"endDateMax"`
-	PaginationConditions PaginationConditions `json:"paginationConditions"` // Embedded pagination and sorting struct
+	Projects             []string             `form:"projects"`  // Filter by name
+	ID                   *uint                `form:"id"`        // Filter by ID
+	Name                 *string              `form:"name"`      // Filter by name
+	Status               *string              `form:"status"`    // Filter by active status
+	IsDefault            *bool                `form:"isDefault"` // Filter by active status
+	StartDateMin         *time.Time           `form:"startDateMin"`
+	StartDateMax         *time.Time           `form:"startDateMax"`
+	EndDateMin           *time.Time           `form:"endDateMin"`
+	EndDateMax           *time.Time           `form:"endDateMax"`
+	PaginationConditions PaginationConditions `form:"paginationConditions"` // Embedded pagination and sorting struct
 }
 
 type GetReferrerRequest struct {
-	Projects             []string             `json:"projects"`    // Filter by name
-	ID                   *uint                `json:"id"`          // Filter by ID
-	ReferenceID          *string              `json:"referenceID"` // Composite key with Project
-	Code                 *string              `json:"code"`
-	PaginationConditions PaginationConditions `json:"paginationConditions"` // Embedded pagination and sorting struct
+	Projects             []string             `form:"projects"`    // Filter by name
+	ID                   *uint                `form:"id"`          // Filter by ID
+	ReferenceID          *string              `form:"referenceID"` // Composite key with Project
+	Code                 *string              `form:"code"`
+	PaginationConditions PaginationConditions `form:"paginationConditions"` // Embedded pagination and sorting struct
 }
 
 type GetRefereeRequest struct {
-	Projects             []string             `json:"projects"`             // Filter by name
-	ID                   *uint                `json:"id"`                   // Filter by ID
-	ReferenceID          *string              `json:"referenceID"`          // Composite key with Project
-	ReferrerReferenceID  *string              `json:"referrerReferenceID"`  // Composite key with Project
-	ReferrerID           *uint                `json:"referrerID"`           // ID of the Referrer (Foreign Key to Referrer table)
-	PaginationConditions PaginationConditions `json:"paginationConditions"` // Embedded pagination and sorting struct
+	Projects             []string             `form:"projects"`             // Filter by name
+	ID                   *uint                `form:"id"`                   // Filter by ID
+	ReferenceID          *string              `form:"referenceID"`          // Composite key with Project
+	ReferrerReferenceID  *string              `form:"referrerReferenceID"`  // Composite key with Project
+	ReferrerID           *uint                `form:"referrerID"`           // ID of the Referrer (Foreign Key to Referrer table)
+	PaginationConditions PaginationConditions `form:"paginationConditions"` // Embedded pagination and sorting struct
 }
 
 type GetRewardRequest struct {
-	Projects             []string             `json:"projects"`             // Filter by name
-	ID                   *uint                `json:"id"`                   // Filter by ID
-	CampaignID           *uint                `json:"campaignID"`           // Filter by ID
-	RefereeID            *uint                `json:"refereeID"`            // Filter by ID
-	RefereeReferenceID   *string              `json:"refereeReferenceID"`   // Composite key with Project
-	ReferrerID           *uint                `json:"referrerID"`           // Filter by ID
-	ReferrerReferenceID  *string              `json:"referrerReferenceID"`  // Composite key with Project
-	ReferrerCode         *string              `json:"referrerCode"`         // Composite key with Project
-	Status               *string              `json:"status"`               // Composite key with Project
-	PaginationConditions PaginationConditions `json:"paginationConditions"` // Embedded pagination and sorting struct
+	Projects             []string             `form:"projects"`             // Filter by name
+	ID                   *uint                `form:"id"`                   // Filter by ID
+	CampaignID           *uint                `form:"campaignID"`           // Filter by ID
+	RefereeID            *uint                `form:"refereeID"`            // Filter by ID
+	RefereeReferenceID   *string              `form:"refereeReferenceID"`   // Composite key with Project
+	ReferrerID           *uint                `form:"referrerID"`           // Filter by ID
+	ReferrerReferenceID  *string              `form:"referrerReferenceID"`  // Composite key with Project
+	ReferrerCode         *string              `form:"referrerCode"`         // Composite key with Project
+	Status               *string              `form:"status"`               // Composite key with Project
+	PaginationConditions PaginationConditions `form:"paginationConditions"` // Embedded pagination and sorting struct
 }
 
 type GetEventLogRequest struct {
-	Projects             []string             `json:"projects"` // Filter by name
-	ID                   *uint                `json:"id"`       // Filter by ID
-	EventKey             *string              `json:"eventKey"`
-	ReferenceID          *string              `json:"referenceID"`
-	Status               *string              `json:"status"`               // Composite key with Project
-	RewardID             *uint                `json:"rewardID"`             // Nullable to allow logs without an associated reward
-	PaginationConditions PaginationConditions `json:"paginationConditions"` // Embedded pagination and sorting struct
+	Projects             []string             `form:"projects"` // Filter by name
+	ID                   *uint                `form:"id"`       // Filter by ID
+	EventKey             *string              `form:"eventKey"`
+	ReferenceID          *string              `form:"referenceID"`
+	Status               *string              `form:"status"`               // Composite key with Project
+	RewardID             *uint                `form:"rewardID"`             // Nullable to allow logs without an associated reward
+	PaginationConditions PaginationConditions `form:"paginationConditions"` // Embedded pagination and sorting struct
 }
