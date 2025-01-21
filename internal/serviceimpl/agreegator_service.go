@@ -26,6 +26,7 @@ func (s *aggregatorService) GetReferrersWithStats(req request.GetReferrerRequest
 		Select(`
 			r.id AS id,
 			r.project AS project,
+			r.email AS email,
 			r.reference_id AS reference_id,
 			r.code AS code,
 			COUNT(DISTINCT rr.id) AS referee_count,
@@ -40,7 +41,7 @@ func (s *aggregatorService) GetReferrersWithStats(req request.GetReferrerRequest
 		Joins(`
 			LEFT JOIN referral_rewards re ON r.id = re.referrer_id AND r.project = re.project
 		`).
-		Group("r.id, r.project, r.reference_id, r.code, r.created_at, r.updated_at, r.deleted_at")
+		Group("r.id, r.project, r.email, r.reference_id, r.code, r.created_at, r.updated_at, r.deleted_at")
 
 	// Apply filters from request
 	if req.Projects != nil && len(req.Projects) > 0 {
