@@ -38,16 +38,16 @@ func ApplyPaginationConditions(query *gorm.DB, conditions PaginationConditions) 
 
 	// Apply date filters
 	if conditions.CreatedAfter != nil {
-		query = query.Where("created_at >= ?", *conditions.CreatedAfter)
+		query = query.Where("created_at > ?", *conditions.CreatedAfter)
 	}
 	if conditions.CreatedBefore != nil {
-		query = query.Where("created_at <= ?", *conditions.CreatedBefore)
+		query = query.Where("created_at < ?", *conditions.CreatedBefore)
 	}
 	if conditions.UpdatedAfter != nil {
-		query = query.Where("updated_at >= ?", *conditions.UpdatedAfter)
+		query = query.Where("updated_at > ?", *conditions.UpdatedAfter)
 	}
 	if conditions.UpdatedBefore != nil {
-		query = query.Where("updated_at <= ?", *conditions.UpdatedBefore)
+		query = query.Where("updated_at < ?", *conditions.UpdatedBefore)
 	}
 
 	if conditions.StartDate != nil {

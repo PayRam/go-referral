@@ -100,7 +100,7 @@ func (s *aggregatorService) GetRewardsStats(req request.GetRewardRequest) ([]res
 	}
 
 	// Handle date range logic
-	if req.PaginationConditions.CreatedAfter == nil || req.PaginationConditions.CreatedBefore == nil {
+	if req.PaginationConditions.StartDate == nil || req.PaginationConditions.EndDate == nil {
 		var dateRangeStartStr, dateRangeEndStr string
 
 		// Fetch the earliest and latest created_at values from the database
@@ -111,19 +111,19 @@ func (s *aggregatorService) GetRewardsStats(req request.GetRewardRequest) ([]res
 			return nil, fmt.Errorf("failed to fetch latest created_at date: %w", err)
 		}
 
-		if req.PaginationConditions.CreatedAfter == nil {
+		if req.PaginationConditions.StartDate == nil {
 			parsed, err := parseTimestamp(dateRangeStartStr)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse earliest created_at date: %w", err)
 			}
-			req.PaginationConditions.CreatedAfter = parsed
+			req.PaginationConditions.StartDate = parsed
 		}
-		if req.PaginationConditions.CreatedBefore == nil {
+		if req.PaginationConditions.EndDate == nil {
 			parsed, err := parseTimestamp(dateRangeEndStr)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse latest created_at date: %w", err)
 			}
-			req.PaginationConditions.CreatedBefore = parsed
+			req.PaginationConditions.EndDate = parsed
 		}
 	}
 
@@ -149,7 +149,7 @@ func (s *aggregatorService) GetRewardsStats(req request.GetRewardRequest) ([]res
 			r.created_at BETWEEN
 				COALESCE(?, (SELECT MIN(created_at) FROM referral_rewards)) AND
 				COALESCE(?, (SELECT MAX(created_at) FROM referral_rewards))
-		`, req.PaginationConditions.CreatedAfter, req.PaginationConditions.CreatedBefore).
+		`, req.PaginationConditions.StartDate, req.PaginationConditions.EndDate).
 		Group("date").
 		Order("r.created_at ASC")
 
