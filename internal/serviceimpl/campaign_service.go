@@ -224,7 +224,7 @@ func (s *campaignService) GetCampaigns(req request.GetCampaignsRequest) ([]model
 	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
 	// Fetch records with pagination
-	if err := query.Find(&campaigns).Error; err != nil {
+	if err := query.Preload("Events").Find(&campaigns).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to fetch campaigns: %w", err)
 	}
 

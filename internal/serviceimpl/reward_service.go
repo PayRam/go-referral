@@ -108,7 +108,7 @@ func (s *rewardService) GetRewards(req request.GetRewardRequest) ([]models.Rewar
 	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
 	// Fetch records with pagination
-	if err := query.Find(&rewards).Error; err != nil {
+	if err := query.Preload("EventLogs").Find(&rewards).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to fetch rewards: %w", err)
 	}
 

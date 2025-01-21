@@ -89,7 +89,7 @@ func (s *refereeService) GetReferees(req request.GetRefereeRequest) ([]models.Re
 	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
 	// Fetch records with pagination
-	if err := query.Find(&referees).Error; err != nil {
+	if err := query.Preload("Referrer").Find(&referees).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to fetch referees: %w", err)
 	}
 

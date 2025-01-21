@@ -95,7 +95,7 @@ func (s *eventLogService) GetEventLogs(req request.GetEventLogRequest) ([]models
 	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
 	// Fetch records with pagination
-	if err := query.Find(&eventLogs).Error; err != nil {
+	if err := query.Preload("Reward").Find(&eventLogs).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to fetch eventLogs: %w", err)
 	}
 

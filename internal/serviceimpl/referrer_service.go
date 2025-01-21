@@ -114,7 +114,7 @@ func (s *referrerService) GetReferrers(req request.GetReferrerRequest) ([]models
 	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
 	// Fetch records with pagination
-	if err := query.Find(&referrers).Error; err != nil {
+	if err := query.Preload("Campaigns").Find(&referrers).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to fetch referrers: %w", err)
 	}
 
