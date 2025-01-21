@@ -110,6 +110,7 @@ type CreateReferrerRequest struct {
 	ReferenceID string  `json:"referenceID" binding:"required"`
 	Code        *string `json:"code"`
 	CampaignIDs []uint  `json:"campaignIDs"`
+	Email       *string `json:"email"`
 }
 
 type CreateEventLogRequest struct {
@@ -120,12 +121,14 @@ type CreateEventLogRequest struct {
 }
 
 type UpdateReferrerRequest struct {
-	CampaignIDs []uint `json:"campaignIDs"`
+	CampaignIDs []uint  `json:"campaignIDs"`
+	Email       *string `json:"email"`
 }
 
 type CreateRefereeRequest struct {
-	ReferenceID string `json:"referenceID" binding:"required"`
-	Code        string `json:"code" binding:"required"`
+	ReferenceID string  `json:"referenceID" binding:"required"`
+	Code        string  `json:"code" binding:"required"`
+	Email       *string `json:"email"`
 }
 
 type GetEventsRequest struct {

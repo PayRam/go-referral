@@ -73,7 +73,8 @@ type Referrer struct {
 	BaseModel
 	Project     string     `gorm:"size:100;not null;uniqueIndex:idx_referrer_project_reference_id"` // Composite key with ReferenceID
 	ReferenceID string     `gorm:"size:100;not null;uniqueIndex:idx_referrer_project_reference_id"` // Composite key with Project
-	Code        string     `gorm:"size:50;uniqueIndex;not null"`                                    // Unique referral code
+	Email       *string    `gorm:"size:100;"`
+	Code        string     `gorm:"size:50;uniqueIndex;not null"` // Unique referral code
 	Campaigns   []Campaign `gorm:"many2many:referral_referrer_campaigns;joinForeignKey:ReferrerID;joinReferences:CampaignID"`
 }
 
@@ -99,6 +100,7 @@ type Referee struct {
 	ReferenceID         string    `gorm:"size:100;not null;uniqueIndex:idx_referee_project_reference"` // Composite key with Project
 	ReferrerID          uint      `gorm:"not null;uniqueIndex:idx_referee_project_reference"`          // ID of the Referrer (Foreign Key to Referrer table)
 	ReferrerReferenceID string    `gorm:"size:100;not null;uniqueIndex:idx_referee_project_reference"` // ID of the Referrer (Foreign Key to Referrer table)
+	Email               *string   `gorm:"size:100;"`
 	Referrer            *Referrer `gorm:"foreignKey:ReferrerID" json:"referrer,omitempty"`
 }
 

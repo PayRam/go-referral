@@ -85,7 +85,7 @@ func updateCampaign(t *testing.T, project string, campaignID uint, req request.U
 	return campaign
 }
 
-func createReferrer(t *testing.T, project, referrerUser string, campaignIDs []uint) *models.Referrer {
+func createReferrer(t *testing.T, project, referrerUser string, campaignIDs []uint, email *string) *models.Referrer {
 	code, err := utils.CreateReferralCode(7)
 	assert.NoError(t, err)
 	// Create a referrer
@@ -95,6 +95,7 @@ func createReferrer(t *testing.T, project, referrerUser string, campaignIDs []ui
 			Code:        &code,
 			ReferenceID: referrerUser,
 			CampaignIDs: campaignIDs,
+			Email:       email,
 		},
 	)
 	assert.NoError(t, err)
@@ -108,7 +109,7 @@ func createReferrer(t *testing.T, project, referrerUser string, campaignIDs []ui
 	return referrer
 }
 
-func createReferee(t *testing.T, project, code, refereeUser string) *models.Referee {
+func createReferee(t *testing.T, project, code, refereeUser string, email *string) *models.Referee {
 	req := request.GetReferrerRequest{
 		Project: &project,
 		Code:    &code,
@@ -124,6 +125,7 @@ func createReferee(t *testing.T, project, code, refereeUser string) *models.Refe
 		request.CreateRefereeRequest{
 			Code:        code,
 			ReferenceID: refereeUser,
+			Email:       email,
 		},
 	)
 	assert.NoError(t, err)
@@ -181,7 +183,9 @@ func triggerEvent(t *testing.T, project, eventKey, user string, data *string, am
 func TestOneTimeCampaign(t *testing.T) {
 	project := "onetimeproject"
 	referrerUser := "user-123"
+	referrerEmail := "abc@gmail.com"
 	refereeUser := "user-456"
+	refereeEmail := "cdd@gmail.com"
 	event := createEvent(t, project, request.CreateEventRequest{
 		Key:       "test-event",
 		Name:      "Test Event",
@@ -234,9 +238,9 @@ func TestOneTimeCampaign(t *testing.T) {
 		EventKeys: []string{event1.Key, event2.Key},
 	})
 
-	referrer := createReferrer(t, project, referrerUser, []uint{campaign.ID})
+	referrer := createReferrer(t, project, referrerUser, []uint{campaign.ID}, &referrerEmail)
 
-	referee := createReferee(t, project, referrer.Code, refereeUser)
+	referee := createReferee(t, project, referrer.Code, refereeUser, &refereeEmail)
 
 	amount := decimal.NewFromFloat(100.50)
 	_, err := triggerEvent(t, project, "signup-event", refereeUser, nil, nil)
@@ -297,7 +301,9 @@ func TestOneTimeCampaign(t *testing.T) {
 func TestRecurringCampaignWithRewardCapAndLimitedBudget(t *testing.T) {
 	project := "recurringproject"
 	referrerUser := "user-123"
+	referrerEmail := "test@gmail.com"
 	refereeUser := "user-456"
+	refereeEmail := "trr@gmail.com"
 	event1 := createEvent(t, project, request.CreateEventRequest{
 		Key:       "payment-recurring-event",
 		Name:      "Payment Recurring Event",
@@ -329,9 +335,9 @@ func TestRecurringCampaignWithRewardCapAndLimitedBudget(t *testing.T) {
 		EventKeys: []string{event1.Key},
 	})
 
-	referrer := createReferrer(t, project, referrerUser, []uint{campaign.ID})
+	referrer := createReferrer(t, project, referrerUser, []uint{campaign.ID}, &referrerEmail)
 
-	referee := createReferee(t, project, referrer.Code, refereeUser)
+	referee := createReferee(t, project, referrer.Code, refereeUser, &refereeEmail)
 
 	amount1 := decimal.NewFromFloat(150.50)
 	amount2 := decimal.NewFromFloat(330.50)
@@ -423,9 +429,9 @@ func TestRecurringCampaignWithMaxOccurrencesPerCustomer(t *testing.T) {
 		EventKeys: []string{event1.Key},
 	})
 
-	referrer := createReferrer(t, project, referrerUser, []uint{campaign.ID})
+	referrer := createReferrer(t, project, referrerUser, []uint{campaign.ID}, nil)
 
-	referee := createReferee(t, project, referrer.Code, refereeUser)
+	referee := createReferee(t, project, referrer.Code, refereeUser, nil)
 
 	amount1 := decimal.NewFromFloat(250.50)
 	amount2 := decimal.NewFromFloat(1510.74565)

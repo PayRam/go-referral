@@ -6,6 +6,7 @@ import (
 	"github.com/PayRam/go-referral/models"
 	"github.com/PayRam/go-referral/request"
 	"gorm.io/gorm"
+	"net/mail"
 )
 
 type refereeService struct {
@@ -21,6 +22,16 @@ func NewRefereeService(db *gorm.DB) *refereeService {
 
 // CreateReferee creates a mapping between a referee and a referrer
 func (s *refereeService) CreateReferee(project string, req request.CreateRefereeRequest) (*models.Referee, error) {
+	// Validate email if provided
+	if req.Email != nil {
+		if *req.Email == "" {
+			return nil, fmt.Errorf("email cannot be empty")
+		}
+		if _, err := mail.ParseAddress(*req.Email); err != nil {
+			return nil, fmt.Errorf("invalid email format: %w", err)
+		}
+	}
+
 	// Validate if the Referrer exists by referral code
 	var referrer models.Referrer
 	if err := s.DB.Where("code = ?", req.Code).First(&referrer).Error; err != nil {
@@ -36,6 +47,7 @@ func (s *refereeService) CreateReferee(project string, req request.CreateReferee
 		ReferrerID:          referrer.ID,
 		ReferrerReferenceID: referrer.ReferenceID,
 		ReferenceID:         req.ReferenceID,
+		Email:               req.Email,
 	}
 	if err := s.DB.Create(referee).Error; err != nil {
 		return nil, err

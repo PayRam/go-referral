@@ -8,6 +8,7 @@ import (
 	"github.com/PayRam/go-referral/utils"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"net/mail"
 )
 
 type referrerService struct {
@@ -21,6 +22,16 @@ func NewReferrerService(db *gorm.DB) *referrerService {
 }
 
 func (s *referrerService) CreateReferrer(project string, req request.CreateReferrerRequest) (*models.Referrer, error) {
+	// Validate email if provided
+	if req.Email != nil {
+		if *req.Email == "" {
+			return nil, fmt.Errorf("email cannot be empty")
+		}
+		if _, err := mail.ParseAddress(*req.Email); err != nil {
+			return nil, fmt.Errorf("invalid email format: %w", err)
+		}
+	}
+
 	// Create the referrer
 	if req.Code == nil || *req.Code == "" {
 		code, err := utils.CreateReferralCode(7)
@@ -34,6 +45,7 @@ func (s *referrerService) CreateReferrer(project string, req request.CreateRefer
 		Project:     project,
 		Code:        *req.Code,
 		ReferenceID: req.ReferenceID,
+		Email:       req.Email,
 	}
 
 	// Use a transaction to ensure atomicity
@@ -109,7 +121,7 @@ func (s *referrerService) GetReferrers(req request.GetReferrerRequest) ([]models
 	return referrers, count, nil
 }
 
-func (s *referrerService) UpdateReferrer(project, referenceID string, request request.UpdateReferrerRequest) (*models.Referrer, error) {
+func (s *referrerService) UpdateReferrer(project, referenceID string, req request.UpdateReferrerRequest) (*models.Referrer, error) {
 	var updatedReferrer *models.Referrer
 
 	// Use a database transaction to ensure atomicity
@@ -126,13 +138,24 @@ func (s *referrerService) UpdateReferrer(project, referenceID string, request re
 			return err
 		}
 
+		// Validate email if provided
+		if req.Email != nil {
+			if *req.Email == "" {
+				return fmt.Errorf("email cannot be empty")
+			}
+			if _, err := mail.ParseAddress(*req.Email); err != nil {
+				return fmt.Errorf("invalid email format: %w", err)
+			}
+			referrer.Email = req.Email // Update email
+		}
+
 		// Remove existing campaign associations
 		if err := tx.Unscoped().Where("referrer_id = ?", referrer.ID).Delete(&models.ReferrerCampaign{}).Error; err != nil {
 			return fmt.Errorf("failed to remove existing campaign associations: %w", err)
 		}
 
 		// Add new campaign associations
-		for _, campaignID := range request.CampaignIDs {
+		for _, campaignID := range req.CampaignIDs {
 			association := &models.ReferrerCampaign{
 				Project:    project,
 				ReferrerID: referrer.ID,
@@ -141,6 +164,11 @@ func (s *referrerService) UpdateReferrer(project, referenceID string, request re
 			if err := tx.Create(association).Error; err != nil {
 				return fmt.Errorf("failed to associate campaign %d: %w", campaignID, err)
 			}
+		}
+
+		// Save the updated referrer details
+		if err := tx.Save(&referrer).Error; err != nil {
+			return fmt.Errorf("failed to save referrer updates: %w", err)
 		}
 
 		// Preload campaigns for the updated referrer
