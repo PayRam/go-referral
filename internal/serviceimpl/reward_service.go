@@ -23,7 +23,7 @@ func (s *rewardService) GetTotalRewards(req request.GetRewardRequest) (decimal.D
 	var totalAmount decimal.Decimal
 
 	// Build the query
-	query := s.DB.Model(&models.Reward{}).Select("SUM(amount)")
+	query := s.DB.Model(&models.Reward{}).Select("COALESCE(SUM(amount), 0) AS total")
 
 	// Apply filters
 	if req.Projects != nil && len(req.Projects) > 0 {
@@ -54,11 +54,17 @@ func (s *rewardService) GetTotalRewards(req request.GetRewardRequest) (decimal.D
 		query = query.Where("status = ?", *req.Status)
 	}
 
+	// Apply pagination conditions
 	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
 	// Calculate the sum
 	if err := query.Scan(&totalAmount).Error; err != nil {
 		return decimal.Zero, fmt.Errorf("failed to calculate total rewards: %w", err)
+	}
+
+	// Ensure totalAmount is set to zero if no records are found
+	if totalAmount.IsZero() {
+		return decimal.Zero, nil
 	}
 
 	return totalAmount, nil
