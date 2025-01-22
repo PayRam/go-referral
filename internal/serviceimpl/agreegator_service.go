@@ -5,6 +5,7 @@ import (
 	"github.com/PayRam/go-referral/request"
 	"github.com/PayRam/go-referral/response"
 	"gorm.io/gorm"
+	"strings"
 	"time"
 )
 
@@ -80,7 +81,11 @@ func (s *aggregatorService) GetRewardsStats(req request.GetRewardRequest) ([]res
 		if ts == "" {
 			return nil, nil
 		}
-		parsed, err := time.Parse("2006-01-02 15:04:05-07:00", ts)
+
+		// Replace space with 'T' to match RFC3339Nano format
+		ts = strings.Replace(ts, " ", "T", 1)
+
+		parsed, err := time.Parse(time.RFC3339Nano, ts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse timestamp: %w", err)
 		}
@@ -92,10 +97,15 @@ func (s *aggregatorService) GetRewardsStats(req request.GetRewardRequest) ([]res
 		var dateRangeStartStr, dateRangeEndStr string
 
 		// Fetch the earliest and latest created_at values from the database
-		if err := s.DB.Table("referral_rewards").Select("MIN(created_at)").Row().Scan(&dateRangeStartStr); err != nil {
+		if err := s.DB.Table("referral_rewards").
+			Select("COALESCE(MIN(created_at), '')").
+			Row().Scan(&dateRangeStartStr); err != nil {
 			return nil, fmt.Errorf("failed to fetch earliest created_at date: %w", err)
 		}
-		if err := s.DB.Table("referral_rewards").Select("MAX(created_at)").Row().Scan(&dateRangeEndStr); err != nil {
+
+		if err := s.DB.Table("referral_rewards").
+			Select("COALESCE(MAX(created_at), '')").
+			Row().Scan(&dateRangeEndStr); err != nil {
 			return nil, fmt.Errorf("failed to fetch latest created_at date: %w", err)
 		}
 
