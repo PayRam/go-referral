@@ -77,6 +77,9 @@ func (s *aggregatorService) GetRewardsStats(req request.GetRewardRequest) ([]res
 
 	// Parse timezone-aware timestamps if needed
 	parseTimestamp := func(ts string) (*time.Time, error) {
+		if ts == "" {
+			return nil, nil
+		}
 		parsed, err := time.Parse("2006-01-02 15:04:05-07:00", ts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse timestamp: %w", err)
@@ -96,6 +99,12 @@ func (s *aggregatorService) GetRewardsStats(req request.GetRewardRequest) ([]res
 			return nil, fmt.Errorf("failed to fetch latest created_at date: %w", err)
 		}
 
+		// Handle case when no records exist
+		if dateRangeStartStr == "" || dateRangeEndStr == "" {
+			return []response.RewardStats{}, nil // Return an empty result
+		}
+
+		// Parse the fetched dates
 		if req.PaginationConditions.StartDate == nil {
 			parsed, err := parseTimestamp(dateRangeStartStr)
 			if err != nil {
