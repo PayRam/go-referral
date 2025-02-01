@@ -4,7 +4,7 @@ import "gorm.io/gorm"
 
 type GetRewardRequest struct {
 	Projects             []string             `form:"projects"`            // Filter by name
-	ID                   *uint                `form:"id"`                  // Filter by ID
+	IDs                  []uint               `form:"ids"`                 // Filter by ID
 	RefereeID            *uint                `form:"refereeID"`           // Filter by ID
 	RefereeReferenceID   *string              `form:"refereeReferenceID"`  // Composite key with Project
 	ReferrerID           *uint                `form:"referrerID"`          // Filter by ID
@@ -20,8 +20,8 @@ func ApplyGetRewardRequest(req GetRewardRequest, query *gorm.DB) *gorm.DB {
 	if req.Projects != nil && len(req.Projects) > 0 {
 		query = query.Where("referral_rewards.project IN (?)", req.Projects)
 	}
-	if req.ID != nil {
-		query = query.Where("referral_rewards.id = ?", *req.ID)
+	if req.IDs != nil && len(req.IDs) > 0 {
+		query = query.Where("referral_rewards.id IN (?)", req.IDs)
 	}
 	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
 		query = query.Where("referral_rewards.campaign_id IN (?)", req.CampaignIDs)

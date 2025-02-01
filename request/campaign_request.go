@@ -55,7 +55,7 @@ type UpdateCampaignRequest struct {
 
 type GetCampaignsRequest struct {
 	Projects             []string             `form:"projects"` // Filter by name
-	ID                   *uint                `form:"id"`       // Filter by ID
+	IDs                  []uint               `form:"ids"`      // Filter by ID
 	Name                 *string              `form:"name"`     // Filter by name
 	Status               *string              `form:"status"`   // Filter by active status
 	CurrencyCode         *string              `json:"currencyCode"`
@@ -72,8 +72,8 @@ func ApplyGetCampaignRequest(req GetCampaignsRequest, query *gorm.DB) *gorm.DB {
 	if req.Projects != nil && len(req.Projects) > 0 {
 		query = query.Where("referral_campaigns.project IN (?)", req.Projects)
 	}
-	if req.ID != nil {
-		query = query.Where("referral_campaigns.id = ?", *req.ID)
+	if req.IDs != nil && len(req.IDs) > 0 {
+		query = query.Where("referral_campaigns.id IN (?)", req.IDs)
 	}
 	if req.Name != nil {
 		query = query.Where("referral_campaigns.name LIKE ?", "%"+*req.Name+"%")
