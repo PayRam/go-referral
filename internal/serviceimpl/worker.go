@@ -164,6 +164,7 @@ func (w *worker) ProcessPendingEvents() error {
 				reward := &models.Reward{
 					Project:             project,
 					CampaignID:          campaign.ID,
+					CurrencyCode:        campaign.CurrencyCode,
 					ReferrerID:          referee.Referrer.ID,
 					ReferrerReferenceID: referee.Referrer.ReferenceID,
 					ReferrerCode:        referee.Referrer.Code,

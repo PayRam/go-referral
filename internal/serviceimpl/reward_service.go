@@ -26,33 +26,7 @@ func (s *rewardService) GetTotalRewards(req request.GetRewardRequest) (decimal.D
 	query := s.DB.Model(&models.Reward{}).Select("COALESCE(SUM(amount), 0) AS total")
 
 	// Apply filters
-	if req.Projects != nil && len(req.Projects) > 0 {
-		query = query.Where("project IN (?)", req.Projects)
-	}
-	if req.ID != nil {
-		query = query.Where("id = ?", *req.ID)
-	}
-	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
-		query = query.Where("campaign_id IN (?)", req.CampaignIDs)
-	}
-	if req.RefereeID != nil {
-		query = query.Where("referee_id = ?", *req.RefereeID)
-	}
-	if req.RefereeReferenceID != nil {
-		query = query.Where("referee_reference_id = ?", *req.RefereeReferenceID)
-	}
-	if req.ReferrerID != nil {
-		query = query.Where("referrer_id = ?", *req.ReferrerID)
-	}
-	if req.ReferrerReferenceID != nil {
-		query = query.Where("referrer_reference_id = ?", *req.ReferrerReferenceID)
-	}
-	if req.ReferrerCode != nil {
-		query = query.Where("referrer_code = ?", *req.ReferrerCode)
-	}
-	if req.Status != nil {
-		query = query.Where("status = ?", *req.Status)
-	}
+	query = request.ApplyGetRewardRequest(req, query)
 
 	// Apply pagination conditions
 	query = request.ApplyPaginationConditions(query, req.PaginationConditions)

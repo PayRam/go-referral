@@ -17,8 +17,9 @@ type Campaign struct {
 	BaseModel
 	Project            string           `gorm:"size:100;not null;index"`
 	Name               string           `gorm:"size:255;not null;index"`
-	RewardType         string           `gorm:"size:50"`                        // e.g., "flat_fee", "percentage"
-	RewardValue        decimal.Decimal  `gorm:""`                               // Percentage value or flat fee
+	RewardType         string           `gorm:"size:50"` // e.g., "flat_fee", "percentage"
+	RewardValue        decimal.Decimal  `gorm:""`        // Percentage value or flat fee
+	CurrencyCode       string           `gorm:"type:varchar(20);default:'USD';index"`
 	RewardCap          *decimal.Decimal `gorm:"type:decimal(38,18)"`            // Maximum reward for percentage type
 	InviteeRewardType  *string          `gorm:"size:50"`                        // e.g., "flat_fee", "percentage"
 	InviteeRewardValue *decimal.Decimal `gorm:""`                               // Reward for invitee
@@ -132,7 +133,8 @@ func (EventLog) TableName() string {
 type Reward struct {
 	BaseModel
 	Project             string          `gorm:"size:100;not null;index"`
-	CampaignID          uint            `gorm:"not null;index"`                           // Foreign key to Campaign
+	CampaignID          uint            `gorm:"not null;index"` // Foreign key to Campaign
+	CurrencyCode        string          `gorm:"type:varchar(20);not null;index"`
 	RefereeID           uint            `gorm:"not null;index"`                           // Foreign key to Referee
 	RefereeReferenceID  string          `gorm:"size:100;not null;index"`                  // Foreign key to Referee
 	ReferrerID          uint            `gorm:"not null;index"`                           // Foreign key to Referee

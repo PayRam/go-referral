@@ -28,6 +28,10 @@ func (s *campaignService) CreateCampaign(project string, req request.CreateCampa
 		return nil, errors.New("name is required")
 	}
 
+	if req.CurrencyCode == "" {
+		return nil, errors.New("currencyCode is required")
+	}
+
 	// Validate required fields
 	if req.RewardType != "flat_fee" && req.RewardType != "percentage" {
 		return nil, errors.New("rewardType must be either 'flat_fee' or 'percentage'")
@@ -160,6 +164,7 @@ func (s *campaignService) CreateCampaign(project string, req request.CreateCampa
 		IsDefault:                 req.IsDefault,
 		RewardType:                req.RewardType,
 		RewardValue:               req.RewardValue,
+		CurrencyCode:              req.CurrencyCode,
 		RewardCap:                 req.RewardCap,
 		Budget:                    req.Budget,
 		InviteeRewardType:         req.InviteeRewardType,
@@ -252,6 +257,10 @@ func (s *campaignService) UpdateCampaign(project string, id uint, req request.Up
 
 	if req.Name != nil && *req.Name == "" {
 		return nil, errors.New("name cannot be empty")
+	}
+
+	if req.CurrencyCode != nil && *req.CurrencyCode == "" {
+		return nil, errors.New("currencyCode cannot be empty")
 	}
 
 	if req.Status != nil && *req.Status != "active" && *req.Status != "paused" && *req.Status != "archived" {
@@ -372,54 +381,7 @@ func (s *campaignService) UpdateCampaign(project string, id uint, req request.Up
 	// Prepare the updates
 	updates := map[string]interface{}{}
 
-	if req.Name != nil {
-		updates["name"] = *req.Name
-	}
-	if req.CampaignTypePerCustomer != nil {
-		updates["campaign_type_per_customer"] = *req.CampaignTypePerCustomer
-	}
-	if req.ValidityMonthsPerCustomer != nil {
-		updates["validity_months_per_customer"] = *req.ValidityMonthsPerCustomer
-	}
-	if req.MaxOccurrencesPerCustomer != nil {
-		updates["max_occurrences_per_customer"] = *req.MaxOccurrencesPerCustomer
-	}
-	if req.RewardCapPerCustomer != nil {
-		updates["reward_cap_per_customer"] = *req.RewardCapPerCustomer
-	}
-	if req.RewardType != nil {
-		updates["reward_type"] = *req.RewardType
-	}
-	if req.RewardValue != nil {
-		updates["reward_value"] = *req.RewardValue
-	}
-	if req.RewardCap != nil {
-		updates["reward_cap"] = *req.RewardCap
-	}
-	if req.InviteeRewardType != nil {
-		updates["invitee_reward_type"] = *req.InviteeRewardType
-	}
-	if req.InviteeRewardValue != nil {
-		updates["invitee_reward_value"] = *req.InviteeRewardValue
-	}
-	if req.Budget != nil {
-		updates["budget"] = *req.Budget
-	}
-	if req.Description != nil {
-		updates["description"] = *req.Description
-	}
-	if req.StartDate != nil {
-		updates["start_date"] = *req.StartDate
-	}
-	if req.EndDate != nil {
-		updates["end_date"] = *req.EndDate
-	}
-	if req.IsDefault != nil {
-		updates["is_default"] = *req.IsDefault
-	}
-	if req.Status != nil {
-		updates["status"] = *req.Status
-	}
+	updates = request.UpdateCampaignFields(req, updates)
 
 	// Validate the date range
 	if req.StartDate != nil && req.EndDate != nil {

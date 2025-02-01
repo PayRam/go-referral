@@ -10,6 +10,7 @@ type CreateCampaignRequest struct {
 	Name               string           `json:"name" binding:"required"`
 	RewardType         string           `json:"rewardType" binding:"required"` // e.g., "flat_fee", "percentage"
 	RewardValue        decimal.Decimal  `json:"rewardValue" binding:"required"`
+	CurrencyCode       string           `json:"currencyCode"`
 	RewardCap          *decimal.Decimal `json:"rewardCap"`
 	InviteeRewardType  *string          `json:"inviteeRewardType"` // e.g., "flat_fee", "percentage"
 	InviteeRewardValue *decimal.Decimal `json:"inviteeRewardValue"`
@@ -32,6 +33,7 @@ type UpdateCampaignRequest struct {
 	Name               *string          `json:"name"`
 	RewardType         *string          `json:"rewardType"` // e.g., "flat_fee", "percentage"
 	RewardValue        *decimal.Decimal `json:"rewardValue"`
+	CurrencyCode       *string          `json:"currencyCode"`
 	RewardCap          *decimal.Decimal `json:"rewardCap"`
 	InviteeRewardType  *string          `json:"inviteeRewardType"` // e.g., "flat_fee", "percentage"
 	InviteeRewardValue *decimal.Decimal `json:"inviteeRewardValue"`
@@ -52,10 +54,11 @@ type UpdateCampaignRequest struct {
 }
 
 type GetCampaignsRequest struct {
-	Projects             []string             `form:"projects"`  // Filter by name
-	ID                   *uint                `form:"id"`        // Filter by ID
-	Name                 *string              `form:"name"`      // Filter by name
-	Status               *string              `form:"status"`    // Filter by active status
+	Projects             []string             `form:"projects"` // Filter by name
+	ID                   *uint                `form:"id"`       // Filter by ID
+	Name                 *string              `form:"name"`     // Filter by name
+	Status               *string              `form:"status"`   // Filter by active status
+	CurrencyCode         *string              `json:"currencyCode"`
 	IsDefault            *bool                `form:"isDefault"` // Filter by active status
 	StartDateMin         *time.Time           `form:"startDateMin"`
 	StartDateMax         *time.Time           `form:"startDateMax"`
@@ -74,6 +77,9 @@ func ApplyGetCampaignRequest(req GetCampaignsRequest, query *gorm.DB) *gorm.DB {
 	}
 	if req.Name != nil {
 		query = query.Where("referral_campaigns.name LIKE ?", "%"+*req.Name+"%")
+	}
+	if req.CurrencyCode != nil {
+		query = query.Where("referral_campaigns.currency_code LIKE ?", "%"+*req.CurrencyCode+"%")
 	}
 	if req.Status != nil {
 		query = query.Where("referral_campaigns.status = ?", *req.Status)
@@ -94,4 +100,59 @@ func ApplyGetCampaignRequest(req GetCampaignsRequest, query *gorm.DB) *gorm.DB {
 		query = query.Where("referral_campaigns.end_date <= ?", *req.EndDateMax)
 	}
 	return query
+}
+
+func UpdateCampaignFields(req UpdateCampaignRequest, updates map[string]interface{}) map[string]interface{} {
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.CurrencyCode != nil {
+		updates["currency_code"] = *req.CurrencyCode
+	}
+	if req.CampaignTypePerCustomer != nil {
+		updates["campaign_type_per_customer"] = *req.CampaignTypePerCustomer
+	}
+	if req.ValidityMonthsPerCustomer != nil {
+		updates["validity_months_per_customer"] = *req.ValidityMonthsPerCustomer
+	}
+	if req.MaxOccurrencesPerCustomer != nil {
+		updates["max_occurrences_per_customer"] = *req.MaxOccurrencesPerCustomer
+	}
+	if req.RewardCapPerCustomer != nil {
+		updates["reward_cap_per_customer"] = *req.RewardCapPerCustomer
+	}
+	if req.RewardType != nil {
+		updates["reward_type"] = *req.RewardType
+	}
+	if req.RewardValue != nil {
+		updates["reward_value"] = *req.RewardValue
+	}
+	if req.RewardCap != nil {
+		updates["reward_cap"] = *req.RewardCap
+	}
+	if req.InviteeRewardType != nil {
+		updates["invitee_reward_type"] = *req.InviteeRewardType
+	}
+	if req.InviteeRewardValue != nil {
+		updates["invitee_reward_value"] = *req.InviteeRewardValue
+	}
+	if req.Budget != nil {
+		updates["budget"] = *req.Budget
+	}
+	if req.Description != nil {
+		updates["description"] = *req.Description
+	}
+	if req.StartDate != nil {
+		updates["start_date"] = *req.StartDate
+	}
+	if req.EndDate != nil {
+		updates["end_date"] = *req.EndDate
+	}
+	if req.IsDefault != nil {
+		updates["is_default"] = *req.IsDefault
+	}
+	if req.Status != nil {
+		updates["status"] = *req.Status
+	}
+	return updates
 }

@@ -3,13 +3,14 @@ package request
 import "gorm.io/gorm"
 
 type GetRewardRequest struct {
-	Projects             []string             `form:"projects"`             // Filter by name
-	ID                   *uint                `form:"id"`                   // Filter by ID
-	RefereeID            *uint                `form:"refereeID"`            // Filter by ID
-	RefereeReferenceID   *string              `form:"refereeReferenceID"`   // Composite key with Project
-	ReferrerID           *uint                `form:"referrerID"`           // Filter by ID
-	ReferrerReferenceID  *string              `form:"referrerReferenceID"`  // Composite key with Project
-	ReferrerCode         *string              `form:"referrerCode"`         // Composite key with Project
+	Projects             []string             `form:"projects"`            // Filter by name
+	ID                   *uint                `form:"id"`                  // Filter by ID
+	RefereeID            *uint                `form:"refereeID"`           // Filter by ID
+	RefereeReferenceID   *string              `form:"refereeReferenceID"`  // Composite key with Project
+	ReferrerID           *uint                `form:"referrerID"`          // Filter by ID
+	ReferrerReferenceID  *string              `form:"referrerReferenceID"` // Composite key with Project
+	ReferrerCode         *string              `form:"referrerCode"`        // Composite key with Project
+	CurrencyCode         *string              `json:"currencyCode"`
 	Status               *string              `form:"status"`               // Composite key with Project
 	CampaignIDs          []uint               `form:"campaignIDs"`          // Filter by ID
 	PaginationConditions PaginationConditions `form:"paginationConditions"` // Embedded pagination and sorting struct
@@ -39,6 +40,9 @@ func ApplyGetRewardRequest(req GetRewardRequest, query *gorm.DB) *gorm.DB {
 	}
 	if req.ReferrerCode != nil {
 		query = query.Where("referral_rewards.referrer_code = ?", *req.ReferrerCode)
+	}
+	if req.CurrencyCode != nil {
+		query = query.Where("referral_rewards.currency_code = ?", *req.CurrencyCode)
 	}
 	if req.Status != nil {
 		query = query.Where("referral_rewards.status = ?", *req.Status)

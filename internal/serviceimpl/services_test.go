@@ -210,6 +210,7 @@ func TestOneTimeCampaign(t *testing.T) {
 		Name:                    "New User Campaign",
 		RewardType:              "percentage",
 		RewardValue:             rewardValue,
+		CurrencyCode:            "USDC",
 		StartDate:               &startDate,
 		EndDate:                 &endDate,
 		Description:             &description,
@@ -323,6 +324,7 @@ func TestRecurringCampaignWithRewardCapAndLimitedBudget(t *testing.T) {
 		Name:                      "New User Campaign",
 		RewardType:                "percentage",
 		RewardValue:               rewardValue,
+		CurrencyCode:              "USDT",
 		RewardCap:                 &rewardCap,
 		StartDate:                 &startDate,
 		EndDate:                   &endDate,
@@ -418,6 +420,7 @@ func TestRecurringCampaignWithMaxOccurrencesPerCustomer(t *testing.T) {
 		RewardType:  "percentage",
 		RewardValue: rewardValue,
 		//RewardCap:                 &rewardCap,
+		CurrencyCode:              "USDC",
 		StartDate:                 &startDate,
 		EndDate:                   &endDate,
 		Description:               &description,
@@ -520,4 +523,21 @@ func TestAggregator(t *testing.T) {
 	for _, reward := range rewardsStats {
 		log.Printf("*********************** Reward: %v", reward)
 	}
+}
+
+func TestTotalRewardEarned(t *testing.T) {
+
+	totalRewards, err := referralService.RewardService.GetTotalRewards(request.GetRewardRequest{
+		Projects: []string{"onetimeproject"},
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "10.05", totalRewards.String())
+
+	totalRewards, err = referralService.RewardService.GetTotalRewards(request.GetRewardRequest{
+		Projects: []string{"recurringproject"},
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "27.77745", totalRewards.String())
 }
