@@ -174,7 +174,7 @@ func (s *referrerService) UpdateReferrer(project, referenceID string, req reques
 	return updatedReferrer, nil
 }
 
-func (s *referrerService) UpdateReferrerStatus(project, id uint, newStatus string) (*models.Referrer, error) {
+func (s *referrerService) UpdateReferrerStatus(project string, id uint, newStatus string) (*models.Referrer, error) {
 	var referrer models.Referrer
 
 	// Validate newStatus
