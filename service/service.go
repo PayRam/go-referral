@@ -31,7 +31,7 @@ type ReferrerService interface {
 	GetReferrers(req request.GetReferrerRequest) ([]models.Referrer, int64, error)
 	GetTotalReferrers(req request.GetReferrerRequest) (int64, error)
 	UpdateReferrer(project, referenceID string, request request.UpdateReferrerRequest) (*models.Referrer, error)
-	UpdateReferrerStatus(project string, id uint, newStatus string) (*models.Referrer, error)
+	UpdateReferrerStatus(project, referenceID string, newStatus string) (*models.Referrer, error)
 }
 
 // RefereeService handles operations related to referral codes

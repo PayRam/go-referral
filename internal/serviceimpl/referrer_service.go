@@ -174,7 +174,7 @@ func (s *referrerService) UpdateReferrer(project, referenceID string, req reques
 	return updatedReferrer, nil
 }
 
-func (s *referrerService) UpdateReferrerStatus(project string, id uint, newStatus string) (*models.Referrer, error) {
+func (s *referrerService) UpdateReferrerStatus(project, referenceID string, newStatus string) (*models.Referrer, error) {
 	var referrer models.Referrer
 
 	// Validate newStatus
@@ -185,7 +185,7 @@ func (s *referrerService) UpdateReferrerStatus(project string, id uint, newStatu
 	// Use transaction to lock the row
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		// Fetch the referrer with a row lock
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("project = ? AND id = ?", project, id).First(&referrer).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("project = ? AND reference_id = ?", project, referenceID).First(&referrer).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("referrer not found")
 			}
