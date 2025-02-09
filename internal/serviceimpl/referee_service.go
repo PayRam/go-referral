@@ -49,9 +49,16 @@ func (s *refereeService) CreateReferee(project string, req request.CreateReferee
 		ReferenceID:         req.ReferenceID,
 		Email:               req.Email,
 	}
+
 	if err := s.DB.Create(referee).Error; err != nil {
 		return nil, err
 	}
+
+	// Preload the Referrer relation
+	if err := s.DB.Preload("Referrer").First(&referee, referee.ID).Error; err != nil {
+		return nil, err
+	}
+
 	return referee, nil
 }
 
