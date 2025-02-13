@@ -8,6 +8,7 @@ import (
 	"github.com/PayRam/go-referral/service"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"sort"
 	"time"
 )
@@ -56,7 +57,7 @@ func (w *worker) RemoveCustomRewardCalculator(eventKey string) error {
 func (w *worker) ProcessPendingEvents() error {
 	// Fetch all active campaigns with preloaded events
 	var campaigns []models.Campaign
-	currentDate := time.Now() // Get the current date and time
+	currentDate := time.Now()
 
 	if err := w.DB.
 		Preload("Events").
@@ -67,97 +68,120 @@ func (w *worker) ProcessPendingEvents() error {
 
 	// Traverse each campaign
 	for _, campaign := range campaigns {
-		err := w.DB.Transaction(func(tx *gorm.DB) error {
-			// Fetch pending EventLogs for this campaign's events
+		// Fetch pending EventLogs for this campaign's events
+		eventKeys := getEventKeys(campaign.Events)
+		var eventLogs []models.EventLog
 
-			eventKeys := getEventKeys(campaign.Events)
-			var eventLogs []models.EventLog
-			if err := tx.Where("project = ? AND status = ? AND event_key IN (?)", campaign.Project, "pending", eventKeys).
-				Order("id ASC"). // Sort the event logs by ID in ascending order
-				Find(&eventLogs).Error; err != nil {
-				return fmt.Errorf("failed to fetch pending EventLogs for campaign %d: %w", campaign.ID, err)
-			}
+		if err := w.DB.Where("project = ? AND status = ? AND event_key IN (?)", campaign.Project, "pending", eventKeys).
+			Order("id ASC").
+			Find(&eventLogs).Error; err != nil {
+			fmt.Printf("failed to fetch pending EventLogs for campaign %d: %v\n", campaign.ID, err)
+			continue
+		}
 
-			// Group EventLogs by ReferrerReferenceID and ReferenceType
-			eventLogGroups := groupEventLogs(eventLogs, eventKeys)
+		// Group EventLogs by ReferrerReferenceID and ReferenceType
+		eventLogGroups := groupEventLogs(eventLogs, eventKeys)
 
-			// Traverse each group of EventLogs
-			for _, logs := range eventLogGroups {
-				//logs := eventLogGroups[referenceKey]
-				project := campaign.Project
-				refereeReferenceID := logs[0].ReferenceID
-				//project, refereeReferenceID := parseReferenceKey(referenceKey)
+		if eventLogGroups == nil {
+			continue
+		}
 
-				var referee models.Referee
-				if err := tx.Preload("Referrer").Where("project = ? AND reference_id = ?", campaign.Project, refereeReferenceID).Find(&referee).Error; err != nil {
-					return fmt.Errorf("failed to fetch referee for project %s and reference_id %s: %w", campaign.Project, refereeReferenceID, err)
+		// Traverse each group of EventLogs
+		for _, logs := range eventLogGroups {
+			// Lock each event log row individually
+			err := w.DB.Transaction(func(tx *gorm.DB) error {
+				eventLogIDs := getEventLogIDs(logs)
+
+				if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+					Where("id IN (?) AND status = ?", eventLogIDs, "pending").
+					Find(&eventLogs).Error; err != nil {
+					return fmt.Errorf("failed to lock event logs: %w", err)
 				}
 
-				if referee.Referrer.Status != "active" {
-					continue
+				project := campaign.Project
+				refereeReferenceID := logs[0].ReferenceID
+
+				var referee models.Referee
+				if err := tx.Preload("Referrer").
+					Where("project = ? AND reference_id = ?", campaign.Project, refereeReferenceID).
+					First(&referee).Error; err != nil {
+					fmt.Printf("failed to fetch referee for project %s and reference_id %s: %v\n", campaign.Project, refereeReferenceID, err)
+					return err
+				}
+
+				if referee.Referrer == nil || referee.Referrer.Status != "active" {
+					fmt.Printf("Referrer is either nil or inactive for reference_id %s\n", refereeReferenceID)
+					return nil
 				}
 
 				// Check if all campaign events are satisfied
-				allEventsSatisfied := areAllCampaignEventsSatisfied(campaign.Events, logs)
-				if !allEventsSatisfied {
-					continue // Skip if not all events are satisfied
+				if !areAllCampaignEventsSatisfied(campaign.Events, logs) {
+					return nil
 				}
 
 				if campaign.CampaignTypePerCustomer == "one_time" {
-					// Check if reward for this campaign and referee already exists
 					var existingReward models.Reward
 					if err := tx.Where("project = ? AND campaign_id = ? AND referrer_reference_id = ?",
 						project, campaign.ID, referee.Referrer.ReferenceID).First(&existingReward).Error; err == nil {
-						//TODO whether event logs should be updated to invalid status. need to discuss and finalize
-						continue // Reward already exists
+						return fmt.Errorf("reward already exists for campaign %d and referrer %s", campaign.ID, referee.Referrer.ReferenceID)
 					}
 				}
 
 				// Calculate reward
 				rewardAmount, err := calculateReward(tx, campaign, logs)
 				if err != nil {
-					continue
+					fmt.Printf("calculateReward: failed to calculate reward for campaign %d: %v\n", campaign.ID, err)
+					return err
 				}
 
-				if campaign.RewardCap != nil {
-					if rewardAmount.GreaterThan(*campaign.RewardCap) {
-						rewardAmount = campaign.RewardCap
-					}
+				// Apply Reward Cap per Customer
+				if campaign.RewardCap != nil && rewardAmount.GreaterThan(*campaign.RewardCap) {
+					rewardAmount = campaign.RewardCap
 				}
 
+				// Validate limits
 				totalReward, monthsPassed, rewardsCount, err := w.GetTotalRewardByReferrer(tx, project, campaign.ID, referee.Referrer.ReferenceID)
 				if err != nil {
-					return fmt.Errorf("failed to calculate total rewards: %w", err)
+					fmt.Printf("GetTotalRewardByReferrer: failed to calculate total reward for campaign %d: %v\n", campaign.ID, err)
+					return err
 				}
 
+				// Reward Cap Per Customer
 				if campaign.RewardCapPerCustomer != nil && totalReward.Add(*rewardAmount).GreaterThan(*campaign.RewardCapPerCustomer) {
-					continue
+					return nil
 				}
+
 				// Check if the validity period is exceeded
 				if campaign.ValidityMonthsPerCustomer != nil && monthsPassed >= *campaign.ValidityMonthsPerCustomer {
-					continue
+					return nil
 				}
 
-				// Check if the max occurrences are exceeded
+				// Check if max occurrences are exceeded
 				if campaign.MaxOccurrencesPerCustomer != nil && rewardsCount >= *campaign.MaxOccurrencesPerCustomer {
-					continue
+					return nil
 				}
 
+				// Budget Limit Check
 				if campaign.Budget != nil {
-					// Get the total reward amount already awarded for this campaign
-					var totalReward decimal.Decimal
+					var totalRewards decimal.Decimal
 					err = tx.Model(&models.Reward{}).
 						Select("COALESCE(SUM(amount), 0)").
 						Where("campaign_id = ?", campaign.ID).
-						Scan(&totalReward).Error
+						Scan(&totalRewards).Error
 					if err != nil {
-						continue
+						fmt.Printf("failed to calculate total reward for campaign %d: %v\n", campaign.ID, err)
+						return err
 					}
 
-					// Check if the total reward (including the current rewardAmount) exceeds the budget
-					if totalReward.Add(*rewardAmount).GreaterThan(*campaign.Budget) {
-						continue
+					// Check if total rewards exceed budget
+					if totalRewards.Add(*rewardAmount).GreaterThan(*campaign.Budget) {
+						return fmt.Errorf("exceeds budget")
 					}
+				}
+
+				if rewardAmount.LessThanOrEqual(decimal.NewFromInt(0)) {
+					fmt.Printf("Reward amount is zero or negative for campaign %d\n", campaign.ID)
+					return fmt.Errorf("Reward amount is zero or negative for campaign %d\n", campaign.ID)
 				}
 
 				// Create the reward
@@ -174,26 +198,27 @@ func (w *worker) ProcessPendingEvents() error {
 					Status:              "pending",
 				}
 				if err := tx.Create(reward).Error; err != nil {
-					continue
+					fmt.Printf("failed to create reward for campaign %d: %v\n", campaign.ID, err)
+					return err
 				}
 
-				// Mark associated EventLogs as processed
-				for _, log := range logs {
-					log.Status = "processed"
-					log.RewardID = &reward.ID
-					log.FailureReason = nil
-					if err := tx.Save(&log).Error; err != nil {
-						return fmt.Errorf("failed to update EventLog status: %w", err)
-					}
+				// Perform bulk update
+				if err := tx.Model(&models.EventLog{}).
+					Where("id IN (?)", eventLogIDs).
+					Updates(map[string]interface{}{
+						"status":    "processed",
+						"reward_id": reward.ID,
+					}).Error; err != nil {
+					return fmt.Errorf("failed to bulk update EventLogs: %w", err)
 				}
+
+				return nil
+			})
+
+			if err != nil {
+				// Log the error and continue with other campaigns
+				fmt.Printf("Error processing campaign %d: %v\n", campaign.ID, err)
 			}
-			return nil
-		})
-
-		if err != nil {
-			// Log the error and continue with other campaigns
-			fmt.Printf("Error processing campaign %d: %v\n", campaign.ID, err)
-			return err
 		}
 	}
 
