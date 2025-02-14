@@ -571,6 +571,10 @@ func (s *campaignService) UpdateCampaignStatus(project string, campaignID uint, 
 			return err
 		}
 
+		if campaign.Status == "archived" {
+			return fmt.Errorf("campaign is archived and cannot be updated")
+		}
+
 		// Check if the status is already the same as newStatus
 		if campaign.Status == newStatus {
 			return fmt.Errorf("campaign is already in status '%s'", newStatus)

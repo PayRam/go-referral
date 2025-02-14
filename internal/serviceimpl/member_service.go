@@ -154,7 +154,7 @@ func (s *referrerService) UpdateMember(project, referenceID string, req request.
 		}
 
 		// Remove existing campaign associations
-		if err := tx.Unscoped().Where("referrer_id = ?", referrer.ID).Delete(&models.MemberCampaign{}).Error; err != nil {
+		if err := tx.Unscoped().Where("member_id = ?", referrer.ID).Delete(&models.MemberCampaign{}).Error; err != nil {
 			return fmt.Errorf("failed to remove existing campaign associations: %w", err)
 		}
 
