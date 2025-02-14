@@ -19,42 +19,50 @@ func NewAggregatorService(db *gorm.DB) *aggregatorService {
 	return &aggregatorService{DB: db}
 }
 
-func (s *aggregatorService) GetReferrersWithStats(req request.GetReferrerRequest) ([]response.ReferrerStats, int64, error) {
+func (s *aggregatorService) GetReferrerMembersStats(req request.GetMemberRequest) ([]response.ReferrerStats, int64, error) {
 	var result []response.ReferrerStats
 	var totalCount int64
 
 	// Build base query for referrers
-	query := s.DB.Table("referral_referrer").
+	query := s.DB.Table("referral_members").
 		Select(`
-			referral_referrer.id AS id,
-			referral_referrer.project AS project,
-			referral_referrer.email AS email,
-			referral_referrer.reference_id AS reference_id,
-			referral_referrer.code AS code,
+			referral_members.id AS id,
+			referral_members.project AS project,
+			referral_members.email AS email,
+			referral_members.reference_id AS reference_id,
+			referral_members.code AS code,
 			COUNT(DISTINCT rr.id) AS referee_count,
 			COALESCE(SUM(re.amount), 0) AS total_rewards,
-			referral_referrer.created_at AS created_at,
-			referral_referrer.updated_at AS updated_at,
-			referral_referrer.deleted_at AS deleted_at
+			CASE 
+					WHEN referral_members.referred_by_member_id IS NOT NULL AND referral_members.referred_by_member_id > 0 
+					THEN TRUE 
+					ELSE FALSE 
+				END
+			AS is_referred,
+			referral_members.created_at AS created_at,
+			referral_members.updated_at AS updated_at,
+			referral_members.deleted_at AS deleted_at
 		`).
 		Joins(`
-			LEFT JOIN referral_referee rr ON referral_referrer.id = rr.referrer_id AND referral_referrer.project = rr.project
+			LEFT JOIN referral_members rr ON referral_members.id = rr.referred_by_member_id AND referral_members.project = rr.project
 		`).
 		Joins(`
-			LEFT JOIN referral_rewards re ON referral_referrer.id = re.referrer_id AND referral_referrer.project = re.project
+			LEFT JOIN referral_rewards re ON referral_members.id = re.rewarded_member_id AND referral_members.project = re.project
 		`)
 
 	// Apply campaign IDs filter if provided
 	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
 		query = query.Joins(`
-			JOIN referral_referrer_campaigns rc ON rc.referrer_id = referral_referrer.id AND rc.project = referral_referrer.project
+			JOIN referral_members_campaigns rc ON rc.member_id = referral_members.id AND rc.project = referral_members.project
 		`).Where("rc.campaign_id IN (?)", req.CampaignIDs)
 	}
+	//query = query.Where("referral_members.referred_by_member_id IS NULL")
 
 	// Group the results to avoid duplicates
-	query = query.Group("referral_referrer.id, referral_referrer.project, referral_referrer.email, referral_referrer.reference_id, referral_referrer.code, referral_referrer.created_at, referral_referrer.updated_at, referral_referrer.deleted_at")
+	//query = query.Group("referral_referrer.id, referral_referrer.project, referral_referrer.email, referral_referrer.reference_id, referral_referrer.code, referral_referrer.created_at, referral_referrer.updated_at, referral_referrer.deleted_at")
+	query = query.Group("referral_members.project, referral_members.reference_id")
 
-	query = request.ApplyGetReferrerRequest(req, query)
+	query = request.ApplyGetMemberRequest(req, query)
 
 	// Calculate total count before applying pagination
 	countQuery := query
@@ -147,7 +155,7 @@ func (s *aggregatorService) GetRewardsStats(req request.GetRewardRequest) ([]res
 					cast(strftime('%Y', created_at) as integer))
 			END AS date,
 			SUM(amount) AS total_rewards,
-			COUNT(DISTINCT referrer_reference_id) AS unique_referrers
+			COUNT(DISTINCT rewarded_member_reference_id) AS unique_referrers
 		`).
 		Where(`
 			created_at BETWEEN

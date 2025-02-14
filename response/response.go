@@ -15,6 +15,7 @@ type ReferrerStats struct {
 	TotalRewards decimal.Decimal `json:"totalRewards"`
 	CreatedAt    time.Time       `json:"createdAt"`
 	UpdatedAt    time.Time       `json:"updatedAt"`
+	IsReferred   bool            `json:"isReferred"`
 }
 
 type RewardStats struct {

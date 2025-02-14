@@ -8,8 +8,8 @@ import (
 
 type CreateCampaignRequest struct {
 	Name               string           `json:"name" binding:"required"`
-	RewardType         string           `json:"rewardType" binding:"required"` // e.g., "flat_fee", "percentage"
-	RewardValue        decimal.Decimal  `json:"rewardValue" binding:"required"`
+	RewardType         *string          `json:"rewardType" binding:"required"` // e.g., "flat_fee", "percentage"
+	RewardValue        *decimal.Decimal `json:"rewardValue" binding:"required"`
 	CurrencyCode       string           `json:"currencyCode"`
 	RewardCap          *decimal.Decimal `json:"rewardCap"`
 	InviteeRewardType  *string          `json:"inviteeRewardType"` // e.g., "flat_fee", "percentage"

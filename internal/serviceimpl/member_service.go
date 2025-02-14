@@ -21,7 +21,7 @@ func NewReferrerService(db *gorm.DB) *referrerService {
 	return &referrerService{DB: db}
 }
 
-func (s *referrerService) CreateReferrer(project string, req request.CreateReferrerRequest) (*models.Referrer, error) {
+func (s *referrerService) CreateMember(project string, req request.CreateMemberRequest) (*models.Member, error) {
 	// Validate email if provided
 	if req.Email != nil {
 		if *req.Email == "" {
@@ -32,35 +32,50 @@ func (s *referrerService) CreateReferrer(project string, req request.CreateRefer
 		}
 	}
 
-	// Create the referrer
-	if req.Code == nil || *req.Code == "" {
+	// Initialize `ReferredByMemberID`
+	var referredByMemberID *uint
+
+	// 🔹 Step 1: Fetch the existing member by `ReferrerCode`
+	if req.ReferrerCode != nil && *req.ReferrerCode != "" {
+		var referrerMember models.Member
+		if err := s.DB.Where("project = ? AND code = ?", project, *req.ReferrerCode).
+			First(&referrerMember).Error; err != nil {
+			return nil, fmt.Errorf("invalid referrer code: %w", err)
+		}
+		referredByMemberID = &referrerMember.ID
+	}
+
+	// 🔹 Step 2: Generate a PreferredCode if not provided
+	if req.PreferredCode == nil || *req.PreferredCode == "" {
 		code, err := utils.CreateReferralCode(7)
 		if err != nil {
-			return nil, fmt.Errorf("CreateReferrer: failed to generate referral code: %w", err)
+			return nil, fmt.Errorf("CreateMember: failed to generate referral code: %w", err)
 		}
-		req.Code = &code
+		req.PreferredCode = &code
 	}
 
-	referrer := &models.Referrer{
-		Project:     project,
-		Code:        *req.Code,
-		ReferenceID: req.ReferenceID,
-		Email:       req.Email,
+	// 🔹 Step 3: Create the new member with `ReferredByMemberID`
+	member := &models.Member{
+		Project:            project,
+		Code:               *req.PreferredCode,
+		ReferenceID:        req.ReferenceID,
+		Email:              req.Email,
+		ReferredByMemberID: referredByMemberID, // Assign the referrer
 	}
 
-	// Use a transaction to ensure atomicity
+	// 🔹 Step 4: Use a transaction to save the member and associate campaigns
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
-		// Save the referrer
-		if err := tx.Create(referrer).Error; err != nil {
+		// Save the new member
+		if err := tx.Create(member).Error; err != nil {
 			return err
 		}
 
 		// Associate campaigns if provided
 		if len(req.CampaignIDs) > 0 {
 			for _, campaignID := range req.CampaignIDs {
-				association := &models.ReferrerCampaign{
+				association := &models.MemberCampaign{
 					Project:    project,
-					ReferrerID: referrer.ID,
+					MemberID:   member.ID,
 					CampaignID: campaignID,
 				}
 				if err := tx.Create(association).Error; err != nil {
@@ -71,25 +86,27 @@ func (s *referrerService) CreateReferrer(project string, req request.CreateRefer
 
 		return nil
 	})
+
 	if err != nil {
 		return nil, err
 	}
 
-	// Reload the referrer with preloaded campaigns
-	if err := s.DB.Preload("Campaigns").First(referrer, referrer.ID).Error; err != nil {
-		return nil, fmt.Errorf("failed to preload campaigns for referrer: %w", err)
+	// 🔹 Step 5: Reload the member with preloaded campaigns and referrer
+	if err := s.DB.Preload("Campaigns").Preload("ReferredByMember").First(member, member.ID).Error; err != nil {
+		return nil, fmt.Errorf("failed to preload member data: %w", err)
 	}
 
-	return referrer, nil
+	return member, nil
 }
-func (s *referrerService) GetReferrers(req request.GetReferrerRequest) ([]models.Referrer, int64, error) {
-	var referrers []models.Referrer
+
+func (s *referrerService) GetMembers(req request.GetMemberRequest) ([]models.Member, int64, error) {
+	var referrers []models.Member
 	var count int64
 
 	// Start query
-	query := s.DB.Model(&models.Referrer{})
+	query := s.DB.Model(&models.Member{})
 
-	query = request.ApplyGetReferrerRequest(req, query)
+	query = request.ApplyGetMemberRequest(req, query)
 
 	// Calculate total count before applying pagination
 	countQuery := query
@@ -101,19 +118,19 @@ func (s *referrerService) GetReferrers(req request.GetReferrerRequest) ([]models
 	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
 	// Fetch records with pagination
-	if err := query.Preload("Campaigns").Find(&referrers).Error; err != nil {
+	if err := query.Preload("Campaigns").Preload("ReferredByMember").Find(&referrers).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to fetch referrers: %w", err)
 	}
 
 	return referrers, count, nil
 }
 
-func (s *referrerService) UpdateReferrer(project, referenceID string, req request.UpdateReferrerRequest) (*models.Referrer, error) {
-	var updatedReferrer *models.Referrer
+func (s *referrerService) UpdateMember(project, referenceID string, req request.UpdateMemberRequest) (*models.Member, error) {
+	var updatedReferrer *models.Member
 
 	// Use a database transaction to ensure atomicity
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
-		var referrer models.Referrer
+		var referrer models.Member
 
 		// Fetch the referrer for the given reference with a row-level lock
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -137,15 +154,15 @@ func (s *referrerService) UpdateReferrer(project, referenceID string, req reques
 		}
 
 		// Remove existing campaign associations
-		if err := tx.Unscoped().Where("referrer_id = ?", referrer.ID).Delete(&models.ReferrerCampaign{}).Error; err != nil {
+		if err := tx.Unscoped().Where("referrer_id = ?", referrer.ID).Delete(&models.MemberCampaign{}).Error; err != nil {
 			return fmt.Errorf("failed to remove existing campaign associations: %w", err)
 		}
 
 		// Add new campaign associations
 		for _, campaignID := range req.CampaignIDs {
-			association := &models.ReferrerCampaign{
+			association := &models.MemberCampaign{
 				Project:    project,
-				ReferrerID: referrer.ID,
+				MemberID:   referrer.ID,
 				CampaignID: campaignID,
 			}
 			if err := tx.Create(association).Error; err != nil {
@@ -159,7 +176,7 @@ func (s *referrerService) UpdateReferrer(project, referenceID string, req reques
 		}
 
 		// Preload campaigns for the updated referrer
-		if err := tx.Preload("Campaigns").First(&referrer, referrer.ID).Error; err != nil {
+		if err := tx.Preload("Campaigns").Preload("ReferredByMember").First(&referrer, referrer.ID).Error; err != nil {
 			return fmt.Errorf("failed to preload campaigns for referrer: %w", err)
 		}
 
@@ -174,8 +191,8 @@ func (s *referrerService) UpdateReferrer(project, referenceID string, req reques
 	return updatedReferrer, nil
 }
 
-func (s *referrerService) UpdateReferrerStatus(project, referenceID string, newStatus string) (*models.Referrer, error) {
-	var referrer models.Referrer
+func (s *referrerService) UpdateMemberStatus(project, referenceID string, newStatus string) (*models.Member, error) {
+	var referrer models.Member
 
 	// Validate newStatus
 	if newStatus != "active" && newStatus != "inactive" {
@@ -206,7 +223,7 @@ func (s *referrerService) UpdateReferrerStatus(project, referenceID string, newS
 		}
 
 		// Fetch the updated referrer with associated campaigns
-		if err := tx.Preload("Campaigns").First(&referrer, referrer.ID).Error; err != nil {
+		if err := tx.Preload("Campaigns").Preload("ReferredByMember").First(&referrer, referrer.ID).Error; err != nil {
 			return fmt.Errorf("failed to preload campaigns for referrer: %w", err)
 		}
 
@@ -220,13 +237,13 @@ func (s *referrerService) UpdateReferrerStatus(project, referenceID string, newS
 	return &referrer, nil
 }
 
-func (s *referrerService) GetTotalReferrers(req request.GetReferrerRequest) (int64, error) {
+func (s *referrerService) GetTotalMembers(req request.GetMemberRequest) (int64, error) {
 	var count int64
 
 	// Build the query
-	query := s.DB.Model(&models.Referrer{})
+	query := s.DB.Model(&models.Member{})
 
-	query = request.ApplyGetReferrerRequest(req, query)
+	query = request.ApplyGetMemberRequest(req, query)
 
 	// Count the records
 	if err := query.Count(&count).Error; err != nil {

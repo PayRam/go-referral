@@ -13,9 +13,8 @@ var Initialise = &gormigrate.Migration{
 			&models.Event{},
 			&models.Campaign{},
 			&models.CampaignEvent{},
-			&models.Referrer{},
-			&models.Referee{},
-			&models.ReferrerCampaign{},
+			&models.Member{},
+			&models.MemberCampaign{},
 			&models.EventLog{},
 			&models.Reward{},
 		)
@@ -25,9 +24,8 @@ var Initialise = &gormigrate.Migration{
 			&models.Event{},
 			&models.Campaign{},
 			&models.CampaignEvent{},
-			&models.Referrer{},
-			&models.Referee{},
-			&models.ReferrerCampaign{},
+			&models.Member{},
+			&models.MemberCampaign{},
 			&models.EventLog{},
 			&models.Reward{},
 		)

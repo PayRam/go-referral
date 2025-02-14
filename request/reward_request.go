@@ -3,17 +3,16 @@ package request
 import "gorm.io/gorm"
 
 type GetRewardRequest struct {
-	Projects             []string             `form:"projects"`            // Filter by name
-	IDs                  []uint               `form:"ids"`                 // Filter by ID
-	RefereeID            *uint                `form:"refereeID"`           // Filter by ID
-	RefereeReferenceID   *string              `form:"refereeReferenceID"`  // Composite key with Project
-	ReferrerID           *uint                `form:"referrerID"`          // Filter by ID
-	ReferrerReferenceID  *string              `form:"referrerReferenceID"` // Composite key with Project
-	ReferrerCode         *string              `form:"referrerCode"`        // Composite key with Project
-	CurrencyCode         *string              `json:"currencyCode"`
-	Status               *string              `form:"status"`               // Composite key with Project
-	CampaignIDs          []uint               `form:"campaignIDs"`          // Filter by ID
-	PaginationConditions PaginationConditions `form:"paginationConditions"` // Embedded pagination and sorting struct
+	Projects                  []string             `form:"projects"`                  // Filter by name
+	IDs                       []uint               `form:"ids"`                       // Filter by ID
+	RelatedMemberID           *uint                `form:"relatedMemberID"`           // Filter by ID
+	RelatedMemberReferenceID  *string              `form:"relatedMemberReferenceID"`  // Composite key with Project
+	RewardedMemberID          *uint                `form:"rewardedMemberID"`          // Filter by ID
+	RewardedMemberReferenceID *string              `form:"rewardedMemberReferenceID"` // Composite key with Project
+	CurrencyCode              *string              `json:"currencyCode"`
+	Status                    *string              `form:"status"`               // Composite key with Project
+	CampaignIDs               []uint               `form:"campaignIDs"`          // Filter by ID
+	PaginationConditions      PaginationConditions `form:"paginationConditions"` // Embedded pagination and sorting struct
 }
 
 func ApplyGetRewardRequest(req GetRewardRequest, query *gorm.DB) *gorm.DB {
@@ -26,20 +25,17 @@ func ApplyGetRewardRequest(req GetRewardRequest, query *gorm.DB) *gorm.DB {
 	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
 		query = query.Where("referral_rewards.campaign_id IN (?)", req.CampaignIDs)
 	}
-	if req.RefereeID != nil {
-		query = query.Where("referral_rewards.referee_id = ?", *req.RefereeID)
+	if req.RelatedMemberID != nil {
+		query = query.Where("referral_rewards.related_member_id = ?", *req.RelatedMemberID)
 	}
-	if req.RefereeReferenceID != nil {
-		query = query.Where("referral_rewards.referee_reference_id = ?", *req.RefereeReferenceID)
+	if req.RelatedMemberReferenceID != nil {
+		query = query.Where("referral_rewards.related_member_reference_id = ?", *req.RelatedMemberReferenceID)
 	}
-	if req.ReferrerID != nil {
-		query = query.Where("referral_rewards.referrer_id = ?", *req.ReferrerID)
+	if req.RewardedMemberID != nil {
+		query = query.Where("referral_rewards.rewarded_member_id = ?", *req.RewardedMemberID)
 	}
-	if req.ReferrerReferenceID != nil {
-		query = query.Where("referral_rewards.referrer_reference_id = ?", *req.ReferrerReferenceID)
-	}
-	if req.ReferrerCode != nil {
-		query = query.Where("referral_rewards.referrer_code = ?", *req.ReferrerCode)
+	if req.RewardedMemberReferenceID != nil {
+		query = query.Where("referral_rewards.rewarded_member_reference_id = ?", *req.RewardedMemberReferenceID)
 	}
 	if req.CurrencyCode != nil {
 		query = query.Where("referral_rewards.currency_code = ?", *req.CurrencyCode)

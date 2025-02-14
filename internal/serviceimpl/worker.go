@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/PayRam/go-referral/models"
-	"github.com/PayRam/go-referral/service"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -14,44 +13,15 @@ import (
 )
 
 type worker struct {
-	DB                      *gorm.DB
-	DefaultRewardCalculator service.RewardCalculator
-	CustomCalculators       map[string]service.RewardCalculator // Map of EventID to custom calculators
+	DB *gorm.DB
 }
 
 //var _ service.Worker = &worker{}
 
 func NewWorkerService(db *gorm.DB) *worker {
 	return &worker{
-		DefaultRewardCalculator: NewDefaultRewardCalculator(),
-		DB:                      db,
+		DB: db,
 	}
-}
-
-func (w *worker) AddCustomRewardCalculator(eventKey string, calculator service.RewardCalculator) error {
-	// Validate if the event key exists in the database
-	var event models.Event
-	if err := w.DB.Where("key = ?", eventKey).First(&event).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("event key '%s' does not exist", eventKey)
-		}
-		return fmt.Errorf("failed to validate event key '%s': %w", eventKey, err)
-	}
-
-	// Add the calculator to the map
-	w.CustomCalculators[eventKey] = calculator
-	return nil
-}
-
-func (w *worker) RemoveCustomRewardCalculator(eventKey string) error {
-	// Check if a custom calculator exists for the event key
-	if _, exists := w.CustomCalculators[eventKey]; !exists {
-		return fmt.Errorf("no custom calculator found for event key '%s'", eventKey)
-	}
-
-	// Remove the calculator from the map
-	delete(w.CustomCalculators, eventKey)
-	return nil
 }
 
 func (w *worker) ProcessPendingEvents() error {
@@ -79,7 +49,7 @@ func (w *worker) ProcessPendingEvents() error {
 			continue
 		}
 
-		// Group EventLogs by ReferrerReferenceID and ReferenceType
+		// Group EventLogs by ReferredByMemberReferenceID and ReferenceType
 		eventLogGroups := groupEventLogs(eventLogs, eventKeys)
 
 		if eventLogGroups == nil {
@@ -99,18 +69,18 @@ func (w *worker) ProcessPendingEvents() error {
 				}
 
 				project := campaign.Project
-				refereeReferenceID := logs[0].ReferenceID
+				refereeReferenceID := logs[0].MemberReferenceID
 
-				var referee models.Referee
-				if err := tx.Preload("Referrer").
+				var member models.Member
+				if err := tx.Preload("ReferredByMember").
 					Where("project = ? AND reference_id = ?", campaign.Project, refereeReferenceID).
-					First(&referee).Error; err != nil {
+					First(&member).Error; err != nil {
 					fmt.Printf("failed to fetch referee for project %s and reference_id %s: %v\n", campaign.Project, refereeReferenceID, err)
 					return err
 				}
 
-				if referee.Referrer == nil || referee.Referrer.Status != "active" {
-					fmt.Printf("Referrer is either nil or inactive for reference_id %s\n", refereeReferenceID)
+				if member.ReferredByMember == nil || member.ReferredByMember.Status != "active" {
+					fmt.Printf("Member is either nil or inactive for reference_id %s\n", refereeReferenceID)
 					return nil
 				}
 
@@ -121,44 +91,39 @@ func (w *worker) ProcessPendingEvents() error {
 
 				if campaign.CampaignTypePerCustomer == "one_time" {
 					var existingReward models.Reward
-					if err := tx.Where("project = ? AND campaign_id = ? AND referrer_reference_id = ?",
-						project, campaign.ID, referee.Referrer.ReferenceID).First(&existingReward).Error; err == nil {
-						return fmt.Errorf("reward already exists for campaign %d and referrer %s", campaign.ID, referee.Referrer.ReferenceID)
+					if err := tx.Where("project = ? AND campaign_id = ? AND rewarded_member_reference_id = ?",
+						project, campaign.ID, member.ReferredByMember.ReferenceID).First(&existingReward).Error; err == nil {
+						return fmt.Errorf("reward already exists for campaign %d and referrer %s", campaign.ID, member.ReferredByMember.ReferenceID)
 					}
 				}
 
 				// Calculate reward
-				rewardAmount, err := calculateReward(tx, campaign, logs)
+				referrerRewardAmount, refereeRewardAmount, err := calculateReward(tx, campaign, logs)
 				if err != nil {
 					fmt.Printf("calculateReward: failed to calculate reward for campaign %d: %v\n", campaign.ID, err)
 					return err
 				}
 
-				// Apply Reward Cap per Customer
-				if campaign.RewardCap != nil && rewardAmount.GreaterThan(*campaign.RewardCap) {
-					rewardAmount = campaign.RewardCap
-				}
+				if referrerRewardAmount != nil {
+					// Apply Reward Cap per Customer
+					if campaign.RewardCap != nil && referrerRewardAmount.GreaterThan(*campaign.RewardCap) {
+						referrerRewardAmount = campaign.RewardCap
+					}
 
-				// Validate limits
-				totalReward, monthsPassed, rewardsCount, err := w.GetTotalRewardByReferrer(tx, project, campaign.ID, referee.Referrer.ReferenceID)
-				if err != nil {
-					fmt.Printf("GetTotalRewardByReferrer: failed to calculate total reward for campaign %d: %v\n", campaign.ID, err)
-					return err
+					err = w.validateReward(tx, err, project, campaign, member.ReferredByMember.ReferenceID, referrerRewardAmount)
+					if err != nil {
+						return err
+					}
 				}
+				if refereeRewardAmount != nil {
+					if campaign.RewardCap != nil && refereeRewardAmount.GreaterThan(*campaign.InviteeRewardCap) {
+						refereeRewardAmount = campaign.RewardCap
+					}
 
-				// Reward Cap Per Customer
-				if campaign.RewardCapPerCustomer != nil && totalReward.Add(*rewardAmount).GreaterThan(*campaign.RewardCapPerCustomer) {
-					return nil
-				}
-
-				// Check if the validity period is exceeded
-				if campaign.ValidityMonthsPerCustomer != nil && monthsPassed >= *campaign.ValidityMonthsPerCustomer {
-					return nil
-				}
-
-				// Check if max occurrences are exceeded
-				if campaign.MaxOccurrencesPerCustomer != nil && rewardsCount >= *campaign.MaxOccurrencesPerCustomer {
-					return nil
+					err = w.validateReward(tx, err, project, campaign, member.ReferenceID, refereeRewardAmount)
+					if err != nil {
+						return err
+					}
 				}
 
 				// Budget Limit Check
@@ -173,42 +138,75 @@ func (w *worker) ProcessPendingEvents() error {
 						return err
 					}
 
+					calculatedTotalRewards := decimal.Zero
+					if referrerRewardAmount != nil {
+						calculatedTotalRewards = calculatedTotalRewards.Add(*referrerRewardAmount)
+					}
+					if refereeRewardAmount != nil {
+						calculatedTotalRewards = calculatedTotalRewards.Add(*refereeRewardAmount)
+					}
+
 					// Check if total rewards exceed budget
-					if totalRewards.Add(*rewardAmount).GreaterThan(*campaign.Budget) {
+					if totalRewards.Add(calculatedTotalRewards).GreaterThan(*campaign.Budget) {
 						return fmt.Errorf("exceeds budget")
 					}
 				}
 
-				if rewardAmount.LessThanOrEqual(decimal.NewFromInt(0)) {
-					fmt.Printf("Reward amount is zero or negative for campaign %d\n", campaign.ID)
-					return fmt.Errorf("Reward amount is zero or negative for campaign %d\n", campaign.ID)
+				var referrerReward *models.Reward
+				var refereeReward *models.Reward
+				if referrerRewardAmount != nil && referrerRewardAmount.GreaterThan(decimal.NewFromInt(0)) {
+					// Create the reward
+					referrerReward = &models.Reward{
+						Project:                   project,
+						CampaignID:                campaign.ID,
+						CurrencyCode:              campaign.CurrencyCode,
+						RewardedMemberID:          member.ReferredByMember.ID,
+						RewardedMemberReferenceID: member.ReferredByMember.ReferenceID,
+						RelatedMemberID:           member.ID,
+						RelatedMemberReferenceID:  member.ReferenceID,
+						MemberType:                "referrer",
+						Amount:                    *referrerRewardAmount,
+						Status:                    "pending",
+					}
+					if err := tx.Create(referrerReward).Error; err != nil {
+						fmt.Printf("failed to create reward for campaign %d: %v\n", campaign.ID, err)
+						return err
+					}
 				}
 
-				// Create the reward
-				reward := &models.Reward{
-					Project:             project,
-					CampaignID:          campaign.ID,
-					CurrencyCode:        campaign.CurrencyCode,
-					ReferrerID:          referee.Referrer.ID,
-					ReferrerReferenceID: referee.Referrer.ReferenceID,
-					ReferrerCode:        referee.Referrer.Code,
-					RefereeID:           referee.ID,
-					RefereeReferenceID:  referee.ReferenceID,
-					Amount:              *rewardAmount,
-					Status:              "pending",
+				if refereeRewardAmount != nil && refereeRewardAmount.GreaterThan(decimal.NewFromInt(0)) {
+					refereeReward = &models.Reward{
+						Project:                   project,
+						CampaignID:                campaign.ID,
+						CurrencyCode:              campaign.CurrencyCode,
+						RewardedMemberID:          member.ID,
+						RewardedMemberReferenceID: member.ReferenceID,
+						RelatedMemberID:           member.ReferredByMember.ID,
+						RelatedMemberReferenceID:  member.ReferredByMember.ReferenceID,
+						MemberType:                "referee",
+						Amount:                    *refereeRewardAmount,
+						Status:                    "pending",
+					}
+					if err := tx.Create(refereeReward).Error; err != nil {
+						fmt.Printf("failed to create referee reward for campaign %d: %v\n", campaign.ID, err)
+						return err
+					}
 				}
-				if err := tx.Create(reward).Error; err != nil {
-					fmt.Printf("failed to create reward for campaign %d: %v\n", campaign.ID, err)
-					return err
+
+				mapData := map[string]interface{}{
+					"status": "processed",
+				}
+				if referrerReward != nil {
+					mapData["referred_reward_id"] = referrerReward.ID
+				}
+				if refereeReward != nil {
+					mapData["referee_reward_id"] = refereeReward.ID
 				}
 
 				// Perform bulk update
 				if err := tx.Model(&models.EventLog{}).
 					Where("id IN (?)", eventLogIDs).
-					Updates(map[string]interface{}{
-						"status":    "processed",
-						"reward_id": reward.ID,
-					}).Error; err != nil {
+					Updates(mapData).Error; err != nil {
 					return fmt.Errorf("failed to bulk update EventLogs: %w", err)
 				}
 
@@ -225,7 +223,32 @@ func (w *worker) ProcessPendingEvents() error {
 	return nil
 }
 
-func (w *worker) GetTotalRewardByReferrer(
+func (w *worker) validateReward(tx *gorm.DB, err error, project string, campaign models.Campaign, referenceID string, rewardAmount *decimal.Decimal) error {
+	// Validate limits
+	referrerTotalReward, referrerMonthsPassed, referrerRewardsCount, err := w.GetTotalRewardByMember(tx, project, campaign.ID, referenceID)
+	if err != nil {
+		fmt.Printf("GetTotalRewardByMember: failed to calculate total reward for campaign %d: %v\n", campaign.ID, err)
+		return err
+	}
+
+	// Reward Cap Per Customer
+	if campaign.RewardCapPerCustomer != nil && referrerTotalReward.Add(*rewardAmount).GreaterThan(*campaign.RewardCapPerCustomer) {
+		return errors.New("exceeds reward cap per customer")
+	}
+
+	// Check if the validity period is exceeded
+	if campaign.ValidityMonthsPerCustomer != nil && referrerMonthsPassed >= *campaign.ValidityMonthsPerCustomer {
+		return errors.New("exceeds validity period")
+	}
+
+	// Check if max occurrences are exceeded
+	if campaign.MaxOccurrencesPerCustomer != nil && referrerRewardsCount >= *campaign.MaxOccurrencesPerCustomer {
+		return errors.New("exceeds max occurrences per customer")
+	}
+	return nil
+}
+
+func (w *worker) GetTotalRewardByMember(
 	tx *gorm.DB,
 	project string,
 	campaignID uint,
@@ -237,7 +260,7 @@ func (w *worker) GetTotalRewardByReferrer(
 
 	// Query the rewards table to calculate the total reward and get the first reward month and rewards count
 	err := tx.Model(&models.Reward{}).
-		Where("project = ? AND campaign_id = ? AND referrer_reference_id = ?", project, campaignID, referrerReferenceID).
+		Where("project = ? AND campaign_id = ? AND rewarded_member_reference_id = ?", project, campaignID, referrerReferenceID).
 		Select("COALESCE(SUM(amount), 0) AS total_reward, MIN(created_at) AS first_reward_month, COUNT(*) AS rewards_count").
 		Row().Scan(&totalReward, &firstRewardMonthStr, &rewardsCount)
 
@@ -282,29 +305,50 @@ func areAllCampaignEventsSatisfied(events []models.Event, logs []models.EventLog
 	return true
 }
 
-func calculateReward(tx *gorm.DB, campaign models.Campaign, logs []models.EventLog) (*decimal.Decimal, error) {
-	if campaign.RewardType == "flat_fee" {
-		return &campaign.RewardValue, nil
-	}
+func calculateReward(tx *gorm.DB, campaign models.Campaign, logs []models.EventLog) (*decimal.Decimal, *decimal.Decimal, error) {
+	var referrerReward *decimal.Decimal
+	var refereeReward *decimal.Decimal
+	if campaign.RewardType != nil {
+		if *campaign.RewardType == "flat_fee" {
+			referrerReward = campaign.RewardValue
+		} else if *campaign.RewardType == "percentage" {
+			// Sum the total amount from event logs for percentage calculation
+			var totalAmount decimal.Decimal
+			if err := tx.Model(&models.EventLog{}).
+				Where("id IN (?)", getEventLogIDs(logs)).
+				Select("COALESCE(SUM(amount), 0)").
+				Scan(&totalAmount).Error; err != nil {
+				return nil, nil, fmt.Errorf("failed to calculate total amount from event logs: %w", err)
+			}
 
-	if campaign.RewardType == "percentage" {
-		// Sum the total amount from event logs for percentage calculation
-		var totalAmount decimal.Decimal
-		if err := tx.Model(&models.EventLog{}).
-			Where("id IN (?)", getEventLogIDs(logs)).
-			Select("COALESCE(SUM(amount), 0)").
-			Scan(&totalAmount).Error; err != nil {
-			return nil, fmt.Errorf("failed to calculate total amount from event logs: %w", err)
+			// Calculate the percentage-based reward
+			percentage := campaign.RewardValue.Div(decimal.NewFromInt(100))
+			reward := totalAmount.Mul(percentage)
+			referrerReward = &reward
+			//return &reward, nil
 		}
+	}
+	if campaign.InviteeRewardType != nil {
+		if *campaign.InviteeRewardType == "flat_fee" {
+			refereeReward = campaign.InviteeRewardValue
+		} else if campaign.InviteeRewardType != nil && *campaign.InviteeRewardType == "percentage" {
+			// Sum the total amount from event logs for percentage calculation
+			var totalAmount decimal.Decimal
+			if err := tx.Model(&models.EventLog{}).
+				Where("id IN (?)", getEventLogIDs(logs)).
+				Select("COALESCE(SUM(amount), 0)").
+				Scan(&totalAmount).Error; err != nil {
+				return nil, nil, fmt.Errorf("failed to calculate total amount from event logs: %w", err)
+			}
 
-		// Calculate the percentage-based reward
-		percentage := campaign.RewardValue.Div(decimal.NewFromInt(100))
-		reward := totalAmount.Mul(percentage)
-
-		return &reward, nil
+			// Calculate the percentage-based reward
+			percentage := campaign.InviteeRewardValue.Div(decimal.NewFromInt(100))
+			reward := totalAmount.Mul(percentage)
+			refereeReward = &reward
+		}
 	}
 
-	return nil, fmt.Errorf("unknown reward type: %s", campaign.RewardType)
+	return referrerReward, refereeReward, nil
 }
 
 func getEventLogIDs(logs []models.EventLog) []uint {
@@ -345,7 +389,7 @@ func groupEventLogs(eventLogs []models.EventLog, requiredKeys []string) [][]mode
 	for _, log := range eventLogs {
 		added := false
 		for i, group := range eventLogsArray {
-			if group[0].ReferenceID == log.ReferenceID && !hasAllKeys(group, requiredKeys) {
+			if group[0].MemberReferenceID == log.MemberReferenceID && !hasAllKeys(group, requiredKeys) {
 				keyExists := false
 				for _, existingLog := range group {
 					if existingLog.EventKey == log.EventKey {

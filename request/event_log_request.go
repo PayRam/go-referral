@@ -34,7 +34,7 @@ func ApplyGetEventLogRequest(req GetEventLogRequest, query *gorm.DB) *gorm.DB {
 		query = query.Where("referral_event_logs.event_key = ?", *req.EventKey)
 	}
 	if req.ReferenceID != nil {
-		query = query.Where("referral_event_logs.reference_id = ?", *req.ReferenceID)
+		query = query.Where("referral_event_logs.member_reference_id = ?", *req.ReferenceID)
 	}
 	if req.Status != nil {
 		query = query.Where("referral_event_logs.status = ?", *req.Status)
