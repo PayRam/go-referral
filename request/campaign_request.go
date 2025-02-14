@@ -45,10 +45,10 @@ type UpdateCampaignRequest struct {
 	Status             *string          `json:"status"`
 	IsDefault          *bool            `json:"isDefault"` // Only one default campaign
 
-	CampaignTypePerCustomer   *string          `json:"campaignTypePerCustomer" binding:"required"` // Campaign type: "one_time", "forever", "months_per_customer", "count_per_customer"
-	ValidityMonthsPerCustomer *int             `json:"validityMonthsPerCustomer"`                  // For "months_per_customer"
-	MaxOccurrencesPerCustomer *int64           `json:"maxOccurrencesPerCustomer"`                  // For "count_per_customer"
-	RewardCapPerCustomer      *decimal.Decimal `json:"rewardCapPerCustomer"`                       // Maximum reward for percentage type
+	CampaignTypePerCustomer   *string          `json:"campaignTypePerCustomer"`   // Campaign type: "one_time", "forever", "months_per_customer", "count_per_customer"
+	ValidityMonthsPerCustomer *int             `json:"validityMonthsPerCustomer"` // For "months_per_customer"
+	MaxOccurrencesPerCustomer *int64           `json:"maxOccurrencesPerCustomer"` // For "count_per_customer"
+	RewardCapPerCustomer      *decimal.Decimal `json:"rewardCapPerCustomer"`      // Maximum reward for percentage type
 
 	EventKeys []string `json:"eventKeys"`
 }
