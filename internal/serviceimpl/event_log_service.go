@@ -41,13 +41,13 @@ func (s *eventLogService) CreateEventLog(project string, req request.CreateEvent
 
 	// Create the event log
 	eventLog := &models.EventLog{
-		Project:     project,
-		EventKey:    req.EventKey,
-		ReferenceID: req.ReferenceID,
-		Amount:      req.Amount,
-		TriggeredAt: time.Now(),
-		Data:        req.Data,
-		Status:      "pending",
+		Project:           project,
+		EventKey:          req.EventKey,
+		MemberReferenceID: req.ReferenceID,
+		Amount:            req.Amount,
+		TriggeredAt:       time.Now(),
+		Data:              req.Data,
+		Status:            "pending",
 	}
 
 	if err := s.DB.Create(eventLog).Error; err != nil {
@@ -77,7 +77,7 @@ func (s *eventLogService) GetEventLogs(req request.GetEventLogRequest) ([]models
 	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
 	// Fetch records with pagination
-	if err := query.Preload("Reward").Find(&eventLogs).Error; err != nil {
+	if err := query.Preload("ReferredReward").Preload("RefereeReward").Find(&eventLogs).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to fetch eventLogs: %w", err)
 	}
 

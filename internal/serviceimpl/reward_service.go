@@ -41,7 +41,7 @@ func (s *rewardService) GetTotalRewards(req request.GetRewardRequest) (decimal.D
 		return decimal.Zero, nil
 	}
 
-	return totalAmount, nil
+	return totalAmount.Round(6), nil
 }
 
 // GetRewards fetches rewards based on the provided request
@@ -65,7 +65,7 @@ func (s *rewardService) GetRewards(req request.GetRewardRequest) ([]models.Rewar
 	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
 	// Fetch records with pagination
-	if err := query.Preload("EventLogs").Find(&rewards).Error; err != nil {
+	if err := query.Find(&rewards).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to fetch rewards: %w", err)
 	}
 
@@ -111,21 +111,21 @@ func (s *rewardService) GetNewReferrerCount(req request.GetRewardRequest) (int64
 		}
 	}
 
-	// Query to find unique ReferrerReferenceID within the provided date range
+	// Query to find unique ReferredByMemberReferenceID within the provided date range
 	subQuery := s.DB.Table("referral_rewards").
-		Select("referrer_reference_id").
+		Select("referred_by_member_reference_id").
 		Where("created_at < ?", req.PaginationConditions.StartDate)
 
 	query := s.DB.Table("referral_rewards r").
-		Distinct("r.referrer_reference_id").
+		Distinct("r.referred_by_member_reference_id").
 		Where("r.created_at BETWEEN ? AND ?", req.PaginationConditions.StartDate, req.PaginationConditions.EndDate).
-		Where("r.referrer_reference_id NOT IN (?)", subQuery)
+		Where("r.referred_by_member_reference_id NOT IN (?)", subQuery)
 
 	query = request.ApplyGetRewardRequest(req, query)
 
-	// Execute the query to count distinct new referrer_reference_ids
+	// Execute the query to count distinct new referred_by_member_reference_id
 	if err := query.Count(&count).Error; err != nil {
-		return 0, fmt.Errorf("failed to count new referrer_reference_ids: %w", err)
+		return 0, fmt.Errorf("failed to count new referred_by_member_reference_id: %w", err)
 	}
 
 	return count, nil
@@ -170,22 +170,22 @@ func (s *rewardService) GetNewRefereeCount(req request.GetRewardRequest) (int64,
 		}
 	}
 
-	// Query to find unique RefereeReferenceID within the provided date range
+	// Query to find unique RefereeMemberReferenceID within the provided date range
 	subQuery := s.DB.Table("referral_rewards").
-		Select("referee_reference_id").
+		Select("referee_member_reference_id").
 		Where("created_at < ?", req.PaginationConditions.StartDate)
 
 	query := s.DB.Table("referral_rewards r").
-		Distinct("r.referee_reference_id").
+		Distinct("r.referee_member_reference_id").
 		Where("r.created_at BETWEEN ? AND ?", req.PaginationConditions.StartDate, req.PaginationConditions.EndDate).
-		Where("r.referee_reference_id NOT IN (?)", subQuery)
+		Where("r.referee_member_reference_id NOT IN (?)", subQuery)
 
 	// Apply filters
 	query = request.ApplyGetRewardRequest(req, query)
 
 	// Execute the query to count distinct new referee_reference_ids
 	if err := query.Count(&count).Error; err != nil {
-		return 0, fmt.Errorf("failed to count new referee_reference_ids: %w", err)
+		return 0, fmt.Errorf("failed to count new referee_member_reference_id: %w", err)
 	}
 
 	return count, nil

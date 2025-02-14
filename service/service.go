@@ -25,20 +25,13 @@ type CampaignService interface {
 	UpdateCampaignStatus(project string, campaignID uint, newStatus string) (*models.Campaign, error)
 }
 
-// ReferrerService handles operations related to referral codes
-type ReferrerService interface {
-	CreateReferrer(project string, req request.CreateReferrerRequest) (*models.Referrer, error)
-	GetReferrers(req request.GetReferrerRequest) ([]models.Referrer, int64, error)
-	GetTotalReferrers(req request.GetReferrerRequest) (int64, error)
-	UpdateReferrer(project, referenceID string, request request.UpdateReferrerRequest) (*models.Referrer, error)
-	UpdateReferrerStatus(project, referenceID string, newStatus string) (*models.Referrer, error)
-}
-
-// RefereeService handles operations related to referral codes
-type RefereeService interface {
-	CreateReferee(project string, req request.CreateRefereeRequest) (*models.Referee, error)
-	GetReferees(req request.GetRefereeRequest) ([]models.Referee, int64, error)
-	GetTotalReferees(req request.GetRefereeRequest) (int64, error)
+// MemberService handles operations related to referral codes
+type MemberService interface {
+	CreateMember(project string, req request.CreateMemberRequest) (*models.Member, error)
+	GetMembers(req request.GetMemberRequest) ([]models.Member, int64, error)
+	GetTotalMembers(req request.GetMemberRequest) (int64, error)
+	UpdateMember(project, referenceID string, request request.UpdateMemberRequest) (*models.Member, error)
+	UpdateMemberStatus(project, referenceID string, newStatus string) (*models.Member, error)
 }
 
 type EventLogService interface {
@@ -54,16 +47,10 @@ type RewardService interface {
 }
 
 type AggregatorService interface {
-	GetReferrersWithStats(req request.GetReferrerRequest) ([]response.ReferrerStats, int64, error)
+	GetReferrerMembersStats(req request.GetMemberRequest) ([]response.ReferrerStats, int64, error)
 	GetRewardsStats(req request.GetRewardRequest) ([]response.RewardStats, error)
 }
 
-type RewardCalculator interface {
-	CalculateReward(eventLog models.EventLog, campaign models.Campaign, referee models.Referee, referrer models.Referrer) (*models.Reward, error)
-}
-
 type Worker interface {
-	AddCustomRewardCalculator(eventKey string, calculator RewardCalculator) error
-	RemoveCustomRewardCalculator(eventKey string) error
 	ProcessPendingEvents() error
 }

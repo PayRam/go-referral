@@ -63,7 +63,7 @@ func createCampaign(t *testing.T, project string, req request.CreateCampaignRequ
 	assert.NoError(t, err, "failed to create campaign")
 	assert.NotNil(t, campaign)
 	assert.Equal(t, req.Name, campaign.Name)
-	assert.Equal(t, req.RewardType, campaign.RewardType)
+	assert.Equal(t, *req.RewardType, *campaign.RewardType)
 	assert.Equal(t, req.IsDefault, campaign.IsDefault)
 	assert.Equal(t, req.CampaignTypePerCustomer, campaign.CampaignTypePerCustomer)
 	assert.Equal(t, len(req.EventKeys), len(campaign.Events))
@@ -78,24 +78,24 @@ func updateCampaign(t *testing.T, project string, campaignID uint, req request.U
 	assert.NoError(t, err)
 	assert.NotNil(t, campaign)
 	utils.AssertEqualIfExpectedNotNil(t, req.Name, campaign.Name, "Name values should match")
-	utils.AssertEqualIfExpectedNotNil(t, req.RewardType, campaign.RewardType, "RewardType values should match")
+	utils.AssertEqualIfExpectedNotNil(t, req.RewardType, *campaign.RewardType, "RewardType values should match")
 	utils.AssertEqualIfExpectedNotNil(t, req.IsDefault, campaign.IsDefault, "IsDefault values should match")
 	utils.AssertEqualIfExpectedNotNil(t, req.CampaignTypePerCustomer, campaign.CampaignTypePerCustomer, "CampaignTypePerCustomer values should match")
 	assert.Equal(t, len(req.EventKeys), len(campaign.Events))
 	return campaign
 }
 
-func createReferrer(t *testing.T, project, referrerUser string, campaignIDs []uint, email *string) *models.Referrer {
+func createReferrer(t *testing.T, project, referrerUser string, campaignIDs []uint, email *string) *models.Member {
 	code, err := utils.CreateReferralCode(7)
 	assert.NoError(t, err)
 	// Create a referrer
-	referrer, err := referralService.Referrers.CreateReferrer(
+	referrer, err := referralService.Members.CreateMember(
 		project,
-		request.CreateReferrerRequest{
-			Code:        &code,
-			ReferenceID: referrerUser,
-			CampaignIDs: campaignIDs,
-			Email:       email,
+		request.CreateMemberRequest{
+			PreferredCode: &code,
+			ReferenceID:   referrerUser,
+			CampaignIDs:   campaignIDs,
+			Email:         email,
 		},
 	)
 	assert.NoError(t, err)
@@ -109,28 +109,28 @@ func createReferrer(t *testing.T, project, referrerUser string, campaignIDs []ui
 	return referrer
 }
 
-func createReferee(t *testing.T, project, code, refereeUser string, email *string) *models.Referee {
-	req := request.GetReferrerRequest{
+func createReferee(t *testing.T, project, code, refereeUser string, email *string) *models.Member {
+	req := request.GetMemberRequest{
 		Projects: []string{project},
 		Code:     &code,
 	}
 
-	referrers, _, err := referralService.Referrers.GetReferrers(req)
+	referrers, _, err := referralService.Members.GetMembers(req)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(referrers), "expected exactly 1 referrer")
 
-	// Create a Referee using the Referrer's code
-	referee, err := referralService.Referees.CreateReferee(
+	// Create a Referee using the Member's code
+	referee, err := referralService.Members.CreateMember(
 		project,
-		request.CreateRefereeRequest{
-			Code:        code,
-			ReferenceID: refereeUser,
-			Email:       email,
+		request.CreateMemberRequest{
+			ReferrerCode: &code,
+			ReferenceID:  refereeUser,
+			Email:        email,
 		},
 	)
 	assert.NoError(t, err)
 	assert.NotNil(t, referee)
-	assert.Equal(t, referrers[0].ID, referee.ReferrerID)
+	assert.Equal(t, referrers[0].ID, *referee.ReferredByMemberID)
 	assert.Equal(t, project, referee.Project)
 	assert.Equal(t, refereeUser, referee.ReferenceID)
 	return referee
@@ -153,7 +153,7 @@ func triggerEvent(t *testing.T, project, eventKey, user string, data *string, am
 	// Verify the EventLog is created correctly
 	assert.Equal(t, project, eventLog.Project)
 	assert.Equal(t, eventKey, eventLog.EventKey)
-	assert.Equal(t, user, eventLog.ReferenceID)
+	assert.Equal(t, user, eventLog.MemberReferenceID)
 	if data == nil && eventLog.Data == nil {
 		assert.True(t, true, "Both data and eventLog.Data are nil")
 	} else if data != nil && eventLog.Data != nil {
@@ -202,14 +202,15 @@ func TestOneTimeCampaign(t *testing.T) {
 	budget := decimal.NewFromFloat(100.00)
 	description := "Campaign for new user signups and payments"
 	rewardValue := decimal.NewFromFloat(10.0)
-	var inviteeRewardType = "flat_fee"
-	var inviteeRewardValue = decimal.NewFromFloat(40.0)
+	var rewardType = "percentage"
+	var inviteeRewardType = "percentage"
+	var inviteeRewardValue = decimal.NewFromFloat(5.0)
 	//var inviteeRewardCap = decimal.NewFromFloat(1000.0)
 
 	campaign := createCampaign(t, project, request.CreateCampaignRequest{
 		Name:                    "New User Campaign",
-		RewardType:              "percentage",
-		RewardValue:             rewardValue,
+		RewardType:              &rewardType,
+		RewardValue:             &rewardValue,
 		CurrencyCode:            "USDC",
 		StartDate:               &startDate,
 		EndDate:                 &endDate,
@@ -250,14 +251,10 @@ func TestOneTimeCampaign(t *testing.T) {
 	_, err = triggerEvent(t, project, "payment-event", refereeUser, utils.StringPtr(`{"transactionId": "12345"}`), &amount)
 
 	err = referralService.Worker.ProcessPendingEvents()
-	if err != nil {
-		log.Fatalf("****************failed to process pending events: %v", err)
-	}
 	assert.NoError(t, err)
 
 	req := request.GetRewardRequest{
-		Projects:            []string{project},
-		ReferrerReferenceID: &referrerUser,
+		Projects: []string{project},
 		PaginationConditions: request.PaginationConditions{
 			SortBy: utils.StringPtr("id"),
 			Order:  utils.StringPtr("asc"),
@@ -266,18 +263,30 @@ func TestOneTimeCampaign(t *testing.T) {
 
 	rewards, count, err := referralService.RewardService.GetRewards(req)
 	assert.NoError(t, err)
-	assert.Equal(t, int64(1), count)
+	assert.Equal(t, int64(2), count)
 
-	expectedReward := decimal.NewFromFloat(10.05)
+	referredMemberExpectedReward := decimal.NewFromFloat(10.05)
+	refereeMemberExpectedReward2 := decimal.NewFromFloat(5.025)
 
 	assert.Equal(t, project, rewards[0].Project)
 	assert.Equal(t, campaign.ID, rewards[0].CampaignID)
-	assert.Equal(t, referee.ID, rewards[0].RefereeID)
-	assert.Equal(t, refereeUser, rewards[0].RefereeReferenceID)
-	assert.Equal(t, referrer.ID, rewards[0].ReferrerID)
-	assert.Equal(t, referrerUser, rewards[0].ReferrerReferenceID)
+	assert.Equal(t, referee.ID, rewards[0].RelatedMemberID)
+	assert.Equal(t, refereeUser, rewards[0].RelatedMemberReferenceID)
+	assert.Equal(t, referrer.ID, rewards[0].RewardedMemberID)
+	assert.Equal(t, referrerUser, rewards[0].RewardedMemberReferenceID)
+	assert.Equal(t, "referrer", rewards[0].MemberType)
 	assert.Equal(t, "pending", rewards[0].Status)
-	assert.Equal(t, expectedReward.String(), rewards[0].Amount.String())
+	assert.Equal(t, referredMemberExpectedReward.String(), rewards[0].Amount.String())
+
+	assert.Equal(t, project, rewards[1].Project)
+	assert.Equal(t, campaign.ID, rewards[1].CampaignID)
+	assert.Equal(t, referrer.ID, rewards[1].RelatedMemberID)
+	assert.Equal(t, referrerUser, rewards[1].RelatedMemberReferenceID)
+	assert.Equal(t, referee.ID, rewards[1].RewardedMemberID)
+	assert.Equal(t, refereeUser, rewards[1].RewardedMemberReferenceID)
+	assert.Equal(t, "referee", rewards[1].MemberType)
+	assert.Equal(t, "pending", rewards[1].Status)
+	assert.Equal(t, refereeMemberExpectedReward2.String(), rewards[1].Amount.String())
 
 	elreq := request.GetEventLogRequest{
 		Projects:    []string{project},
@@ -292,10 +301,12 @@ func TestOneTimeCampaign(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, int64(4), count)
 
-	assert.Equal(t, rewards[0].ID, *eventLogs[0].RewardID)
-	assert.Nil(t, eventLogs[1].RewardID)
-	assert.Equal(t, rewards[0].ID, *eventLogs[2].RewardID)
-	assert.Nil(t, eventLogs[3].RewardID)
+	assert.Equal(t, rewards[0].ID, *eventLogs[0].ReferredRewardID)
+	assert.Equal(t, rewards[1].ID, *eventLogs[0].RefereeRewardID)
+	assert.Nil(t, eventLogs[1].ReferredRewardID)
+	assert.Equal(t, rewards[0].ID, *eventLogs[2].ReferredRewardID)
+	assert.Equal(t, rewards[1].ID, *eventLogs[2].RefereeRewardID)
+	assert.Nil(t, eventLogs[3].ReferredRewardID)
 
 }
 
@@ -316,14 +327,15 @@ func TestRecurringCampaignWithRewardCapAndLimitedBudget(t *testing.T) {
 	endDate := startDate.AddDate(0, 1, 0) // One month from start date
 	budget := decimal.NewFromFloat(30.00)
 	description := "Campaign for new user signups and payments"
+	var rewardType = "percentage"
 	rewardValue := decimal.NewFromFloat(8.49)
 	rewardCap := decimal.NewFromFloat(15.00)
 	//var inviteeRewardCap = decimal.NewFromFloat(1000.0)
 	maxOccurrencesPerCustomer := int64(10)
 	campaign := createCampaign(t, project, request.CreateCampaignRequest{
 		Name:                      "New User Campaign",
-		RewardType:                "percentage",
-		RewardValue:               rewardValue,
+		RewardType:                &rewardType,
+		RewardValue:               &rewardValue,
 		CurrencyCode:              "USDT",
 		RewardCap:                 &rewardCap,
 		StartDate:                 &startDate,
@@ -354,8 +366,8 @@ func TestRecurringCampaignWithRewardCapAndLimitedBudget(t *testing.T) {
 	assert.NoError(t, err)
 
 	req := request.GetRewardRequest{
-		Projects:            []string{project},
-		ReferrerReferenceID: &referrerUser,
+		Projects:                  []string{project},
+		RewardedMemberReferenceID: &referrerUser,
 		PaginationConditions: request.PaginationConditions{
 			SortBy: utils.StringPtr("id"),
 			Order:  utils.StringPtr("asc"),
@@ -371,10 +383,10 @@ func TestRecurringCampaignWithRewardCapAndLimitedBudget(t *testing.T) {
 
 	assert.Equal(t, project, rewards[0].Project)
 	assert.Equal(t, campaign.ID, rewards[0].CampaignID)
-	assert.Equal(t, referee.ID, rewards[0].RefereeID)
-	assert.Equal(t, refereeUser, rewards[0].RefereeReferenceID)
-	assert.Equal(t, referrer.ID, rewards[0].ReferrerID)
-	assert.Equal(t, referrerUser, rewards[0].ReferrerReferenceID)
+	assert.Equal(t, referee.ID, rewards[0].RelatedMemberID)
+	assert.Equal(t, refereeUser, rewards[0].RelatedMemberReferenceID)
+	assert.Equal(t, referrer.ID, rewards[0].RewardedMemberID)
+	assert.Equal(t, referrerUser, rewards[0].RewardedMemberReferenceID)
 	assert.Equal(t, "pending", rewards[0].Status)
 	assert.Equal(t, expectedReward.String(), rewards[0].Amount.String())
 	assert.Equal(t, expectedReward2.String(), rewards[1].Amount.String())
@@ -392,8 +404,8 @@ func TestRecurringCampaignWithRewardCapAndLimitedBudget(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, int64(3), count)
 
-	assert.Equal(t, rewards[0].ID, *eventLogs[0].RewardID)
-	assert.Equal(t, rewards[1].ID, *eventLogs[1].RewardID)
+	assert.Equal(t, rewards[0].ID, *eventLogs[0].ReferredRewardID)
+	assert.Equal(t, rewards[1].ID, *eventLogs[1].ReferredRewardID)
 }
 
 func TestRecurringCampaignWithMaxOccurrencesPerCustomer(t *testing.T) {
@@ -411,15 +423,15 @@ func TestRecurringCampaignWithMaxOccurrencesPerCustomer(t *testing.T) {
 	endDate := startDate.AddDate(0, 1, 0) // One month from start date
 	budget := decimal.NewFromFloat(3000.00)
 	description := "Campaign for new user signups and payments"
+	var rewardType = "percentage"
 	rewardValue := decimal.NewFromFloat(12.34)
 	//rewardCap := decimal.NewFromFloat(15.00)
 	//var inviteeRewardCap = decimal.NewFromFloat(1000.0)
 	maxOccurrencesPerCustomer := int64(2)
 	campaign := createCampaign(t, project, request.CreateCampaignRequest{
-		Name:        "New User Campaign",
-		RewardType:  "percentage",
-		RewardValue: rewardValue,
-		//RewardCap:                 &rewardCap,
+		Name:                      "New User Campaign",
+		RewardType:                &rewardType,
+		RewardValue:               &rewardValue,
 		CurrencyCode:              "USDC",
 		StartDate:                 &startDate,
 		EndDate:                   &endDate,
@@ -447,8 +459,8 @@ func TestRecurringCampaignWithMaxOccurrencesPerCustomer(t *testing.T) {
 	assert.NoError(t, err)
 
 	req := request.GetRewardRequest{
-		Projects:            []string{project},
-		ReferrerReferenceID: &referrerUser,
+		Projects:                  []string{project},
+		RewardedMemberReferenceID: &referrerUser,
 		PaginationConditions: request.PaginationConditions{
 			SortBy: utils.StringPtr("id"),
 			Order:  utils.StringPtr("asc"),
@@ -464,10 +476,10 @@ func TestRecurringCampaignWithMaxOccurrencesPerCustomer(t *testing.T) {
 
 	assert.Equal(t, project, rewards[0].Project)
 	assert.Equal(t, campaign.ID, rewards[0].CampaignID)
-	assert.Equal(t, referee.ID, rewards[0].RefereeID)
-	assert.Equal(t, refereeUser, rewards[0].RefereeReferenceID)
-	assert.Equal(t, referrer.ID, rewards[0].ReferrerID)
-	assert.Equal(t, referrerUser, rewards[0].ReferrerReferenceID)
+	assert.Equal(t, referee.ID, rewards[0].RelatedMemberID)
+	assert.Equal(t, refereeUser, rewards[0].RelatedMemberReferenceID)
+	assert.Equal(t, referrer.ID, rewards[0].RewardedMemberID)
+	assert.Equal(t, referrerUser, rewards[0].RewardedMemberReferenceID)
 	assert.Equal(t, "pending", rewards[0].Status)
 	assert.Equal(t, expectedReward.String(), rewards[0].Amount.String())
 	assert.Equal(t, expectedReward2.String(), rewards[1].Amount.String())
@@ -485,32 +497,50 @@ func TestRecurringCampaignWithMaxOccurrencesPerCustomer(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, int64(3), count)
 
-	assert.Equal(t, rewards[0].ID, *eventLogs[0].RewardID)
-	assert.Equal(t, rewards[1].ID, *eventLogs[1].RewardID)
-	//assert.Equal(t, rewards[1].ID, eventLogs[1].RewardID)
+	assert.Equal(t, rewards[0].ID, *eventLogs[0].ReferredRewardID)
+	assert.Equal(t, rewards[1].ID, *eventLogs[1].ReferredRewardID)
 }
 
 func TestAggregator(t *testing.T) {
-	stats, count, err := referralService.AggregatorService.GetReferrersWithStats(request.GetReferrerRequest{
+	stats, count, err := referralService.AggregatorService.GetReferrerMembersStats(request.GetMemberRequest{
 		PaginationConditions: request.PaginationConditions{
 			SortBy: utils.StringPtr("id"),
 			Order:  utils.StringPtr("asc"),
 		},
 	})
+
 	assert.NoError(t, err)
-	assert.Equal(t, int64(3), count)
+	assert.Equal(t, int64(6), count)
 
 	assert.Equal(t, "onetimeproject", stats[0].Project)
 	assert.Equal(t, int64(1), stats[0].RefereeCount)
 	assert.Equal(t, "10.05", stats[0].TotalRewards.String())
+	assert.Equal(t, false, stats[0].IsReferred)
 
-	assert.Equal(t, "recurringproject", stats[1].Project)
-	assert.Equal(t, int64(1), stats[1].RefereeCount)
-	assert.Equal(t, "27.77745", stats[1].TotalRewards.String())
+	assert.Equal(t, "onetimeproject", stats[1].Project)
+	assert.Equal(t, int64(0), stats[1].RefereeCount)
+	assert.Equal(t, "5.025", stats[1].TotalRewards.String())
+	assert.Equal(t, true, stats[1].IsReferred)
 
-	assert.Equal(t, "recumaxoccurrenceproject", stats[2].Project)
+	assert.Equal(t, "recurringproject", stats[2].Project)
 	assert.Equal(t, int64(1), stats[2].RefereeCount)
-	assert.Equal(t, "217.33771321", stats[2].TotalRewards.String())
+	assert.Equal(t, "27.77745", stats[2].TotalRewards.String())
+	assert.Equal(t, false, stats[2].IsReferred)
+
+	assert.Equal(t, "recurringproject", stats[3].Project)
+	assert.Equal(t, int64(0), stats[3].RefereeCount)
+	assert.Equal(t, "0", stats[3].TotalRewards.String())
+	assert.Equal(t, true, stats[3].IsReferred)
+
+	assert.Equal(t, "recumaxoccurrenceproject", stats[4].Project)
+	assert.Equal(t, int64(1), stats[4].RefereeCount)
+	assert.Equal(t, "217.33771321", stats[4].TotalRewards.String())
+	assert.Equal(t, false, stats[4].IsReferred)
+
+	assert.Equal(t, "recumaxoccurrenceproject", stats[5].Project)
+	assert.Equal(t, int64(0), stats[5].RefereeCount)
+	assert.Equal(t, "0", stats[5].TotalRewards.String())
+	assert.Equal(t, true, stats[5].IsReferred)
 
 	rewardsStats, err := referralService.AggregatorService.GetRewardsStats(request.GetRewardRequest{})
 	if err != nil {
@@ -518,11 +548,6 @@ func TestAggregator(t *testing.T) {
 	}
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(rewardsStats))
-
-	//print reward stats
-	for _, reward := range rewardsStats {
-		log.Printf("*********************** Reward: %v", reward)
-	}
 }
 
 func TestTotalRewardEarned(t *testing.T) {
@@ -532,7 +557,7 @@ func TestTotalRewardEarned(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, "10.05", totalRewards.String())
+	assert.Equal(t, "15.075", totalRewards.String())
 
 	totalRewards, err = referralService.RewardService.GetTotalRewards(request.GetRewardRequest{
 		Projects: []string{"recurringproject"},

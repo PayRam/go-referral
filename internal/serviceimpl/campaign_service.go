@@ -33,20 +33,25 @@ func (s *campaignService) CreateCampaign(project string, req request.CreateCampa
 	}
 
 	// Validate required fields
-	if req.RewardType != "flat_fee" && req.RewardType != "percentage" {
-		return nil, errors.New("rewardType must be either 'flat_fee' or 'percentage'")
-	}
-	if req.RewardValue.Cmp(decimal.NewFromInt(0)) <= 0 {
-		return nil, errors.New("rewardValue must be greater than zero")
-	}
-	if req.RewardType == "percentage" {
-		if req.RewardValue.Cmp(decimal.NewFromInt(100)) > 0 {
-			return nil, errors.New("percentage rewardValue must be between 0 and 100")
+	if req.RewardType != nil || req.RewardValue != nil {
+		if req.RewardType == nil || req.RewardValue == nil {
+			return nil, errors.New("both rewardType and rewardValue must be provided or omitted")
 		}
-		// RewardCap can be nil or set
-	} else if req.RewardType == "flat_fee" {
-		if req.RewardCap != nil {
-			return nil, errors.New("rewardCap must be nil for flat_fee rewardType")
+		if *req.RewardType != "flat_fee" && *req.RewardType != "percentage" {
+			return nil, errors.New("rewardType must be either 'flat_fee' or 'percentage'")
+		}
+		if req.RewardValue.Cmp(decimal.NewFromInt(0)) <= 0 {
+			return nil, errors.New("rewardValue must be greater than zero")
+		}
+		if *req.RewardType == "percentage" {
+			if req.RewardValue.Cmp(decimal.NewFromInt(100)) > 0 {
+				return nil, errors.New("percentage rewardValue must be between 0 and 100")
+			}
+			// RewardCap can be nil or set
+		} else if *req.RewardType == "flat_fee" {
+			if req.RewardCap != nil {
+				return nil, errors.New("rewardCap must be nil for flat_fee rewardType")
+			}
 		}
 	}
 
@@ -58,9 +63,12 @@ func (s *campaignService) CreateCampaign(project string, req request.CreateCampa
 		if *req.InviteeRewardType != "flat_fee" && *req.InviteeRewardType != "percentage" {
 			return nil, errors.New("inviteeRewardType must be either 'flat_fee' or 'percentage'")
 		}
+		if req.InviteeRewardValue.Cmp(decimal.NewFromInt(0)) <= 0 {
+			return nil, errors.New("inviteeRewardValue must be greater than zero")
+		}
 		if *req.InviteeRewardType == "percentage" {
 			//req.Budget.Cmp(decimal.NewFromInt(0)) <= 0
-			if req.InviteeRewardValue.Cmp(decimal.NewFromInt(100)) > 0 || req.InviteeRewardValue.Cmp(decimal.NewFromInt(0)) < 0 {
+			if req.InviteeRewardValue.Cmp(decimal.NewFromInt(100)) > 0 {
 				return nil, errors.New("percentage inviteeRewardValue must be between 0 and 100")
 			}
 			// InviteeRewardCap can be nil or set
@@ -142,16 +150,24 @@ func (s *campaignService) CreateCampaign(project string, req request.CreateCampa
 		}
 	}
 
-	if req.CampaignTypePerCustomer != "one_time" && len(events) > 1 {
-		return nil, errors.New("only one event is allowed for campaigns with other than 'one_time' campaign type")
+	if req.RewardType == nil && req.InviteeRewardType == nil {
+		return nil, errors.New("either rewardType or inviteeRewardType must be provided")
 	}
 
-	if req.RewardType == "percentage" && paymentCount == 0 {
-		return nil, errors.New("at least one event with event type 'payment' is required for campaigns with 'percentage' reward type")
+	if req.RewardType != nil && *req.RewardType == "percentage" && paymentCount != 1 {
+		return nil, errors.New("only  one event with event type 'payment' is required for campaigns with 'percentage' reward type")
 	}
 
-	if req.RewardType == "flat_fee" && paymentCount > 0 {
+	if req.InviteeRewardType != nil && *req.InviteeRewardType == "percentage" && paymentCount != 1 {
+		return nil, errors.New("only one event with event type 'payment' is required for campaigns with 'percentage' invitee reward type")
+	}
+
+	if req.RewardType != nil && *req.RewardType == "flat_fee" && paymentCount > 0 {
 		return nil, errors.New("no event with event type 'payment' is allowed for campaigns with 'flat_fee' reward type")
+	}
+
+	if req.InviteeRewardType != nil && *req.InviteeRewardType == "flat_fee" && paymentCount > 0 {
+		return nil, errors.New("no event with event type 'payment' is allowed for campaigns with 'flat_fee' invitee reward type")
 	}
 
 	// Create the campaign object
@@ -401,16 +417,21 @@ func (s *campaignService) UpdateCampaign(project string, id uint, req request.Up
 	}
 
 	if req.EventKeys != nil && len(req.EventKeys) > 0 {
-		if campaign.CampaignTypePerCustomer != "one_time" && len(events) > 1 {
-			return nil, errors.New("only one event is allowed for campaigns with other than 'one_time' campaign type")
-		}
 
-		if campaign.RewardType == "percentage" && paymentCount == 0 {
+		if campaign.RewardType != nil && *campaign.RewardType == "percentage" && paymentCount == 0 {
 			return nil, errors.New("at least one event with event type 'payment' is required for campaigns with 'percentage' reward type")
 		}
 
-		if campaign.RewardType == "flat_fee" && paymentCount > 0 {
+		if campaign.InviteeRewardType != nil && *campaign.InviteeRewardType == "percentage" && paymentCount == 0 {
+			return nil, errors.New("at least one event with event type 'payment' is required for campaigns with 'percentage' invitee reward type")
+		}
+
+		if campaign.RewardType != nil && *campaign.RewardType == "flat_fee" && paymentCount > 0 {
 			return nil, errors.New("no event with event type 'payment' is allowed for campaigns with 'flat_fee' reward type")
+		}
+
+		if campaign.InviteeRewardType != nil && *campaign.InviteeRewardType == "flat_fee" && paymentCount > 0 {
+			return nil, errors.New("no event with event type 'payment' is allowed for campaigns with 'flat_fee' invitee reward type")
 		}
 	}
 
