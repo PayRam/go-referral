@@ -16,15 +16,16 @@ type UpdateMemberRequest struct {
 }
 
 type GetMemberRequest struct {
-	Projects             []string             `form:"projects"`    // Filter by name
-	ID                   *uint                `form:"id"`          // Filter by ID
-	ReferenceID          *string              `form:"referenceID"` // Composite key with Project
-	Email                *string              `form:"email"`       // Composite key with Project
-	Code                 *string              `form:"code"`
-	CampaignIDs          []uint               `form:"campaignIDs"`
-	IsReferred           *bool                `form:"isReferrer"`
-	ReferredByMemberID   *uint                `form:"referredByMemberID"`
-	PaginationConditions PaginationConditions `form:"paginationConditions"` // Embedded pagination and sorting struct
+	Projects                    []string             `form:"projects"`    // Filter by name
+	ID                          *uint                `form:"id"`          // Filter by ID
+	ReferenceID                 *string              `form:"referenceID"` // Composite key with Project
+	Email                       *string              `form:"email"`       // Composite key with Project
+	Code                        *string              `form:"code"`
+	CampaignIDs                 []uint               `form:"campaignIDs"`
+	IsReferred                  *bool                `form:"isReferrer"`
+	ReferredByMemberID          *uint                `form:"referredByMemberID"`
+	ReferredByMemberReferenceID *string              `form:"referredByMemberReferenceID"`
+	PaginationConditions        PaginationConditions `form:"paginationConditions"` // Embedded pagination and sorting struct
 }
 
 func ApplyGetMemberRequest(req GetMemberRequest, query *gorm.DB) *gorm.DB {
@@ -49,6 +50,9 @@ func ApplyGetMemberRequest(req GetMemberRequest, query *gorm.DB) *gorm.DB {
 	}
 	if req.ReferredByMemberID != nil {
 		query = query.Where("referral_members.referred_by_member_id = ?", *req.ReferredByMemberID)
+	}
+	if req.ReferredByMemberReferenceID != nil {
+		query = query.Where("referral_members.referred_by_member_reference_id = ?", *req.ReferredByMemberReferenceID)
 	}
 	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
 		// Join with referral_members_campaigns table to filter by CampaignIDs
