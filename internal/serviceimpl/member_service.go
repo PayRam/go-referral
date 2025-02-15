@@ -34,6 +34,7 @@ func (s *referrerService) CreateMember(project string, req request.CreateMemberR
 
 	// Initialize `ReferredByMemberID`
 	var referredByMemberID *uint
+	var referredByMemberReferenceID *string
 
 	// 🔹 Step 1: Fetch the existing member by `ReferrerCode`
 	if req.ReferrerCode != nil && *req.ReferrerCode != "" {
@@ -43,6 +44,7 @@ func (s *referrerService) CreateMember(project string, req request.CreateMemberR
 			return nil, fmt.Errorf("invalid referrer code: %w", err)
 		}
 		referredByMemberID = &referrerMember.ID
+		referredByMemberReferenceID = &referrerMember.ReferenceID
 	}
 
 	// 🔹 Step 2: Generate a PreferredCode if not provided
@@ -56,11 +58,12 @@ func (s *referrerService) CreateMember(project string, req request.CreateMemberR
 
 	// 🔹 Step 3: Create the new member with `ReferredByMemberID`
 	member := &models.Member{
-		Project:            project,
-		Code:               *req.PreferredCode,
-		ReferenceID:        req.ReferenceID,
-		Email:              req.Email,
-		ReferredByMemberID: referredByMemberID, // Assign the referrer
+		Project:                     project,
+		Code:                        *req.PreferredCode,
+		ReferenceID:                 req.ReferenceID,
+		Email:                       req.Email,
+		ReferredByMemberID:          referredByMemberID, // Assign the referrer
+		ReferredByMemberReferenceID: referredByMemberReferenceID,
 	}
 
 	// 🔹 Step 4: Use a transaction to save the member and associate campaigns

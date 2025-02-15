@@ -78,8 +78,9 @@ type Member struct {
 	Code        string  `gorm:"size:50;uniqueIndex;not null" json:"code"`
 	Status      string  `gorm:"size:50;default:'active';index" json:"status"`
 
-	ReferredByMemberID *uint   `gorm:"index" json:"referredByMemberID"` // Nullable, points to another Member
-	ReferredByMember   *Member `gorm:"foreignKey:ReferredByMemberID" json:"referredByMember,omitempty"`
+	ReferredByMemberID          *uint   `gorm:"index" json:"referredByMemberID"`          // Nullable, points to another Member
+	ReferredByMemberReferenceID *string `gorm:"index" json:"referredByMemberReferenceID"` // Nullable, points to another Member
+	ReferredByMember            *Member `gorm:"foreignKey:ReferredByMemberID" json:"referredByMember,omitempty"`
 
 	Campaigns []Campaign `gorm:"many2many:referral_member_campaigns;joinForeignKey:MemberID;joinReferences:CampaignID" json:"campaigns"`
 }
