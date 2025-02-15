@@ -104,6 +104,7 @@ type EventLog struct {
 	BaseModel
 	Project           string           `gorm:"size:100;not null;index" json:"project"`
 	EventKey          string           `gorm:"size:100;not null;index" foreignKey:"Key" references:"Event" json:"eventKey"`
+	MemberID          uint             `gorm:"not null:index" json:"memberID"`
 	MemberReferenceID string           `gorm:"size:100;not null;index" json:"memberReferenceID"`
 	Amount            *decimal.Decimal `gorm:"type:decimal(38,18);index" json:"amount"`
 	TriggeredAt       time.Time        `gorm:"not null;index" json:"triggeredAt"`
@@ -113,6 +114,7 @@ type EventLog struct {
 	ReferredRewardID  *uint            `gorm:"index" json:"referredRewardID"`
 	RefereeRewardID   *uint            `gorm:"index" json:"refereeRewardID"`
 
+	Member         *Member `gorm:"foreignKey:MemberID;references:ID" json:"member"`
 	ReferredReward *Reward `gorm:"foreignKey:ReferredRewardID" json:"referredReward"`
 	RefereeReward  *Reward `gorm:"foreignKey:RefereeRewardID" json:"refereeReward"`
 }
@@ -134,6 +136,9 @@ type Reward struct {
 	Amount                    decimal.Decimal `gorm:"type:decimal(38,18);not null;index" json:"amount"`
 	Status                    string          `gorm:"size:50;default:'pending';not null;index" json:"status"`
 	Reason                    *string         `gorm:"type:text" json:"reason"`
+
+	RewardedMember *Member `gorm:"foreignKey:RewardedMemberID;references:ID" json:"rewardedMember,omitempty"`
+	RelatedMember  *Member `gorm:"foreignKey:RelatedMemberID;references:ID" json:"relatedMember,omitempty"`
 }
 
 func (Reward) TableName() string {

@@ -22,13 +22,19 @@ func NewEventLogService(db *gorm.DB) *eventLogService {
 
 // CreateEventLog creates a new event log entry
 func (s *eventLogService) CreateEventLog(project string, req request.CreateEventLogRequest) (*models.EventLog, error) {
-	// Fetch the event by project and eventKey
+	// 🔹 Step 1: Fetch the event by project and eventKey
 	var event models.Event
 	if err := s.DB.Where("project = ? AND key = ?", project, req.EventKey).First(&event).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch event with key '%s' for project '%s': %w", req.EventKey, project, err)
 	}
 
-	// Validate amount based on event type
+	// 🔹 Step 2: Fetch the Member using ReferenceID
+	var member models.Member
+	if err := s.DB.Where("project = ? AND reference_id = ?", project, req.ReferenceID).First(&member).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch member with reference ID '%s' for project '%s': %w", req.ReferenceID, project, err)
+	}
+
+	// 🔹 Step 3: Validate Amount based on Event Type
 	if event.EventType == "payment" {
 		if req.Amount == nil || req.Amount.IsZero() {
 			return nil, errors.New("amount must be greater than 0 for payment events")
@@ -39,17 +45,19 @@ func (s *eventLogService) CreateEventLog(project string, req request.CreateEvent
 		}
 	}
 
-	// Create the event log
+	// 🔹 Step 4: Create the Event Log
 	eventLog := &models.EventLog{
 		Project:           project,
 		EventKey:          req.EventKey,
-		MemberReferenceID: req.ReferenceID,
+		MemberID:          member.ID,       // ✅ Store the Member ID
+		MemberReferenceID: req.ReferenceID, // ✅ Keep Reference ID for consistency
 		Amount:            req.Amount,
 		TriggeredAt:       time.Now(),
 		Data:              req.Data,
 		Status:            "pending",
 	}
 
+	// 🔹 Step 5: Save the Event Log in DB
 	if err := s.DB.Create(eventLog).Error; err != nil {
 		return nil, fmt.Errorf("failed to create event log: %w", err)
 	}
@@ -77,7 +85,7 @@ func (s *eventLogService) GetEventLogs(req request.GetEventLogRequest) ([]models
 	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
 	// Fetch records with pagination
-	if err := query.Preload("ReferredReward").Preload("RefereeReward").Find(&eventLogs).Error; err != nil {
+	if err := query.Preload("Member").Preload("ReferredReward").Preload("RefereeReward").Find(&eventLogs).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to fetch eventLogs: %w", err)
 	}
 
