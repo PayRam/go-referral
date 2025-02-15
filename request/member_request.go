@@ -23,6 +23,7 @@ type GetMemberRequest struct {
 	Code                 *string              `form:"code"`
 	CampaignIDs          []uint               `form:"campaignIDs"`
 	IsReferred           *bool                `form:"isReferrer"`
+	ReferredByMemberID   *uint                `form:"referredByMemberID"`
 	PaginationConditions PaginationConditions `form:"paginationConditions"` // Embedded pagination and sorting struct
 }
 
@@ -45,6 +46,9 @@ func ApplyGetMemberRequest(req GetMemberRequest, query *gorm.DB) *gorm.DB {
 	}
 	if req.IsReferred != nil {
 		query = query.Where("referral_members.referred_by_member_id IS NOT NULL")
+	}
+	if req.ReferredByMemberID != nil {
+		query = query.Where("referral_members.referred_by_member_id = ?", *req.ReferredByMemberID)
 	}
 	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
 		// Join with referral_members_campaigns table to filter by CampaignIDs
