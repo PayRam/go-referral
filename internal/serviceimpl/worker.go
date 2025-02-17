@@ -31,7 +31,7 @@ func (w *worker) ProcessPendingEvents() error {
 
 	if err := w.DB.
 		Preload("Events").
-		Where("status = ? AND is_default = ? AND end_date >= ?", "active", true, currentDate).
+		Where("status = ? AND is_default = ? AND start_date <= ? AND end_date >= ?", "active", true, currentDate, currentDate).
 		Find(&campaigns).Error; err != nil {
 		return fmt.Errorf("failed to fetch campaigns: %w", err)
 	}
