@@ -47,6 +47,15 @@ func (s *campaignService) CreateCampaign(project string, req request.CreateCampa
 			if req.RewardValue.Cmp(decimal.NewFromInt(100)) > 0 {
 				return nil, errors.New("percentage rewardValue must be between 0 and 100")
 			}
+			if req.RewardCap != nil && req.RewardCap.Cmp(decimal.NewFromInt(0)) <= 0 {
+				return nil, errors.New("rewardCap must be greater than zero")
+			}
+			if req.RewardCap != nil && req.RewardCapPerCustomer != nil && req.RewardCap.Cmp(*req.RewardCapPerCustomer) > 0 {
+				return nil, errors.New("reward cap must be less than or equal to reward cap per customer")
+			}
+			if req.RewardCapPerCustomer != nil && req.Budget != nil && req.RewardCapPerCustomer.Cmp(*req.Budget) > 0 {
+				return nil, errors.New("reward cap per customer must be less than or equal to budget")
+			}
 			// RewardCap can be nil or set
 		} else if *req.RewardType == "flat_fee" {
 			if req.RewardCap != nil {
@@ -70,6 +79,12 @@ func (s *campaignService) CreateCampaign(project string, req request.CreateCampa
 			//req.Budget.Cmp(decimal.NewFromInt(0)) <= 0
 			if req.InviteeRewardValue.Cmp(decimal.NewFromInt(100)) > 0 {
 				return nil, errors.New("percentage inviteeRewardValue must be between 0 and 100")
+			}
+			if req.InviteeRewardCap != nil && req.InviteeRewardCap.Cmp(decimal.NewFromInt(0)) <= 0 {
+				return nil, errors.New("inviteeRewardCap must be greater than zero")
+			}
+			if req.InviteeRewardCap != nil && req.RewardCapPerCustomer != nil && req.InviteeRewardCap.Cmp(*req.RewardCapPerCustomer) > 0 {
+				return nil, errors.New("invitee reward cap must be less than or equal to reward cap per customer")
 			}
 			// InviteeRewardCap can be nil or set
 		} else if *req.InviteeRewardType == "flat_fee" {
@@ -296,6 +311,15 @@ func (s *campaignService) UpdateCampaign(project string, id uint, req request.Up
 		if req.RewardValue != nil && req.RewardValue.Cmp(decimal.NewFromInt(100)) > 0 {
 			return nil, errors.New("percentage rewardValue must be between 0 and 100")
 		}
+		if req.RewardCap != nil && req.RewardCap.Cmp(decimal.NewFromInt(0)) <= 0 {
+			return nil, errors.New("rewardCap must be greater than zero")
+		}
+		if req.RewardCap != nil && req.RewardCapPerCustomer != nil && req.RewardCap.Cmp(*req.RewardCapPerCustomer) > 0 {
+			return nil, errors.New("reward cap must be less than or equal to reward cap per customer")
+		}
+		if req.RewardCapPerCustomer != nil && req.Budget != nil && req.RewardCapPerCustomer.Cmp(*req.Budget) > 0 {
+			return nil, errors.New("reward cap per customer must be less than or equal to budget")
+		}
 		// RewardCap can be nil or set
 	} else if req.RewardType != nil && *req.RewardType == "flat_fee" {
 		if req.RewardCap != nil {
@@ -315,7 +339,12 @@ func (s *campaignService) UpdateCampaign(project string, id uint, req request.Up
 			if req.InviteeRewardValue.Cmp(decimal.NewFromInt(100)) > 0 || req.InviteeRewardValue.Cmp(decimal.NewFromInt(0)) < 0 {
 				return nil, errors.New("percentage inviteeRewardValue must be between 0 and 100")
 			}
-			// InviteeRewardCap can be nil or set
+			if req.InviteeRewardCap != nil && req.InviteeRewardCap.Cmp(decimal.NewFromInt(0)) <= 0 {
+				return nil, errors.New("inviteeRewardCap must be greater than zero")
+			}
+			if req.InviteeRewardCap != nil && req.RewardCapPerCustomer != nil && req.InviteeRewardCap.Cmp(*req.RewardCapPerCustomer) > 0 {
+				return nil, errors.New("invitee reward cap must be less than or equal to reward cap per customer")
+			}
 		} else if *req.InviteeRewardType == "flat_fee" {
 			if req.InviteeRewardCap != nil {
 				return nil, errors.New("inviteeRewardCap must be nil for flat_fee inviteeRewardType")
