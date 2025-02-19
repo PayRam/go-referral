@@ -39,6 +39,10 @@ type EventLogService interface {
 	GetEventLogs(req request.GetEventLogRequest) ([]models.EventLog, int64, error)
 }
 
+type CampaignEventLogService interface {
+	GetCampaignEventLogs(req request.GetCampaignEventLogRequest) ([]models.CampaignEventLog, int64, error)
+}
+
 type RewardService interface {
 	GetTotalRewards(request request.GetRewardRequest) (decimal.Decimal, error)
 	GetRewards(req request.GetRewardRequest) ([]models.Reward, int64, error)

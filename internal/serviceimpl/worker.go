@@ -42,8 +42,13 @@ func (w *worker) ProcessPendingEvents() error {
 		eventKeys := getEventKeys(campaign.Events)
 		var eventLogs []models.EventLog
 
-		if err := w.DB.Where("project = ? AND status = ? AND event_key IN (?)", campaign.Project, "pending", eventKeys).
-			Order("id ASC").
+		if err := w.DB.Table("referral_event_logs el").
+			Select("el.*").
+			Joins("LEFT JOIN referral_campaign_event_logs rces ON el.id = rces.event_log_id AND rces.campaign_id = ?", campaign.ID).
+			Where("el.project = ? AND el.status = ? AND el.event_key IN (?) AND rces.event_log_id IS NULL",
+											campaign.Project, "pending", eventKeys).
+			Where("el.created_at > ?", campaign.ConsiderEventsFrom). // ✅ Ensures only recent logs are considered
+			Order("el.id ASC").
 			Find(&eventLogs).Error; err != nil {
 			fmt.Printf("failed to fetch pending EventLogs for campaign %d: %v\n", campaign.ID, err)
 			continue
@@ -192,22 +197,33 @@ func (w *worker) ProcessPendingEvents() error {
 						return err
 					}
 				}
+				// Prepare bulk insert data for referral_campaign_event_logs
+				var campaignEventStatusEntries []models.CampaignEventLog
 
-				mapData := map[string]interface{}{
-					"status": "processed",
-				}
-				if referrerReward != nil {
-					mapData["referred_reward_id"] = referrerReward.ID
-				}
-				if refereeReward != nil {
-					mapData["referee_reward_id"] = refereeReward.ID
+				for i, eventLogID := range eventLogIDs {
+					entry := models.CampaignEventLog{
+						Project:           campaign.Project,
+						CampaignID:        campaign.ID,
+						EventID:           logs[i].ID,                // Assuming you have eventID from previous logic
+						MemberID:          logs[i].MemberID,          // Assuming you have memberID from previous logic
+						MemberReferenceID: logs[i].MemberReferenceID, // Assuming you have memberReferenceID from previous logic
+						Status:            "processed",
+						EventLogID:        eventLogID,
+					}
+
+					if referrerReward != nil {
+						entry.ReferredRewardID = &referrerReward.ID
+					}
+					if refereeReward != nil {
+						entry.RefereeRewardID = &refereeReward.ID
+					}
+
+					campaignEventStatusEntries = append(campaignEventStatusEntries, entry)
 				}
 
-				// Perform bulk update
-				if err := tx.Model(&models.EventLog{}).
-					Where("id IN (?)", eventLogIDs).
-					Updates(mapData).Error; err != nil {
-					return fmt.Errorf("failed to bulk update EventLogs: %w", err)
+				// Perform bulk insert
+				if err := tx.Create(&campaignEventStatusEntries).Error; err != nil {
+					return fmt.Errorf("failed to bulk insert into referral_campaign_event_logs: %w", err)
 				}
 
 				return nil

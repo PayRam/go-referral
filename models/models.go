@@ -17,24 +17,26 @@ type Campaign struct {
 	BaseModel
 	Project            string           `gorm:"size:100;not null;index" json:"project"`
 	Name               string           `gorm:"size:255;not null;index" json:"name"`
-	RewardType         *string          `gorm:"size:50" json:"rewardType"` // e.g., "flat_fee", "percentage"
-	RewardValue        *decimal.Decimal `gorm:"" json:"rewardValue"`       // Percentage value or flat fee
+	RewardType         *string          `gorm:"size:50" json:"rewardType"`              // e.g., "flat_fee", "percentage"
+	RewardValue        *decimal.Decimal `gorm:"type:decimal(38,18)" json:"rewardValue"` // Percentage value or flat fee
 	CurrencyCode       string           `gorm:"type:varchar(20);default:'USD';index" json:"currencyCode"`
-	RewardCap          *decimal.Decimal `gorm:"type:decimal(38,18)" json:"rewardCap"`         // Maximum reward for percentage type
-	InviteeRewardType  *string          `gorm:"size:50" json:"inviteeRewardType"`             // e.g., "flat_fee", "percentage"
-	InviteeRewardValue *decimal.Decimal `gorm:"" json:"inviteeRewardValue"`                   // Reward for invitee
-	InviteeRewardCap   *decimal.Decimal `gorm:"type:decimal(38,18)" json:"inviteeRewardCap"`  // Cap for invitee reward
-	Budget             *decimal.Decimal `gorm:"type:decimal(38,18)" json:"budget"`            // Budget for the campaign
-	Description        *string          `gorm:"type:text" json:"description"`                 // Optional description
-	StartDate          *time.Time       `gorm:"not null;index" json:"startDate"`              // Start date of the campaign
-	EndDate            *time.Time       `gorm:"not null;index" json:"endDate"`                // End date of the campaign
-	Status             string           `gorm:"size:50;default:'active';index" json:"status"` // New field to track campaign status (e.g., 'active', 'paused', 'archived')
-	IsDefault          bool             `gorm:"default:false;index" json:"isDefault"`         // Only one default campaign
+	RewardCap          *decimal.Decimal `gorm:"type:decimal(38,18)" json:"rewardCap"`          // Maximum reward for percentage type
+	InviteeRewardType  *string          `gorm:"size:50" json:"inviteeRewardType"`              // e.g., "flat_fee", "percentage"
+	InviteeRewardValue *decimal.Decimal `gorm:"type:decimal(38,18)" json:"inviteeRewardValue"` // Reward for invitee
+	InviteeRewardCap   *decimal.Decimal `gorm:"type:decimal(38,18)" json:"inviteeRewardCap"`   // Cap for invitee reward
+	Budget             *decimal.Decimal `gorm:"type:decimal(38,18)" json:"budget"`             // Budget for the campaign
+	Description        *string          `gorm:"type:text" json:"description"`                  // Optional description
+	StartDate          *time.Time       `gorm:"not null;index" json:"startDate"`               // Start date of the campaign
+	EndDate            *time.Time       `gorm:"not null;index" json:"endDate"`                 // End date of the campaign
+	Status             string           `gorm:"size:50;default:'active';index" json:"status"`  // New field to track campaign status (e.g., 'active', 'paused', 'archived')
+	IsDefault          bool             `gorm:"default:false;index" json:"isDefault"`          // Only one default campaign
 
 	CampaignTypePerCustomer   string           `gorm:"size:50;not null;index" json:"campaignTypePerCustomer"` // Campaign type: "one_time", "forever", "months_per_customer", "count_per_customer"
 	MaxOccurrencesPerCustomer *int64           `gorm:"" json:"maxOccurrencesPerCustomer"`                     // 0 for unlimited
 	ValidityMonthsPerCustomer *int             `gorm:"" json:"validityMonthsPerCustomer"`                     // 0 for no time limit
 	RewardCapPerCustomer      *decimal.Decimal `gorm:"type:decimal(38,18)" json:"rewardCapPerCustomer"`       // Maximum reward for percentage type
+
+	ConsiderEventsFrom time.Time `gorm:"not null;index" json:"considerEventsFrom"` // Timestamp for event consideration
 
 	Events []Event `gorm:"many2many:referral_campaign_events" json:"events"` // Associated events
 }
@@ -112,16 +114,35 @@ type EventLog struct {
 	Data              *string          `gorm:"type:json;" json:"data"`
 	Status            string           `gorm:"size:50;default:'pending';not null;index" json:"status"`
 	FailureReason     *string          `gorm:"type:text" json:"failureReason"`
-	ReferredRewardID  *uint            `gorm:"index" json:"referredRewardID"`
-	RefereeRewardID   *uint            `gorm:"index" json:"refereeRewardID"`
 
-	Member         *Member `gorm:"foreignKey:MemberID;references:ID" json:"member"`
-	ReferredReward *Reward `gorm:"foreignKey:ReferredRewardID" json:"referredReward"`
-	RefereeReward  *Reward `gorm:"foreignKey:RefereeRewardID" json:"refereeReward"`
+	Member *Member `gorm:"foreignKey:MemberID;references:ID" json:"member"`
 }
 
 func (EventLog) TableName() string {
 	return "referral_event_logs"
+}
+
+type CampaignEventLog struct {
+	BaseModel
+	Project           string `gorm:"size:100;not null;index" json:"project"`
+	CampaignID        uint   `gorm:"not null;index" json:"campaignID"` // The campaign the event is associated with
+	EventID           uint   `gorm:"not null;index" json:"eventID"`    // The event being tracked
+	MemberID          uint   `gorm:"not null;index" json:"memberID"`   // The member who triggered the event
+	MemberReferenceID string `gorm:"size:100;not null;index" json:"memberReferenceID"`
+	Status            string `gorm:"size:50;default:'pending';not null;index" json:"status"` // 'pending', 'completed'
+	EventLogID        uint   `gorm:"not null;index" json:"eventLogID"`
+	ReferredRewardID  *uint  `gorm:"index" json:"referredRewardID"`
+	RefereeRewardID   *uint  `gorm:"index" json:"refereeRewardID"` // Reference to the original event log
+
+	Campaign       *Campaign `gorm:"foreignKey:CampaignID" json:"campaign"`
+	Event          *Event    `gorm:"foreignKey:EventID" json:"event"`
+	Member         *Member   `gorm:"foreignKey:MemberID" json:"member"`
+	ReferredReward *Reward   `gorm:"foreignKey:ReferredRewardID" json:"referredReward"`
+	RefereeReward  *Reward   `gorm:"foreignKey:RefereeRewardID" json:"refereeReward"`
+}
+
+func (CampaignEventLog) TableName() string {
+	return "referral_campaign_event_logs"
 }
 
 type Reward struct {

@@ -191,6 +191,7 @@ func (s *campaignService) CreateCampaign(project string, req request.CreateCampa
 		MaxOccurrencesPerCustomer: req.MaxOccurrencesPerCustomer,
 		RewardCapPerCustomer:      req.RewardCapPerCustomer,
 		Status:                    "active",
+		ConsiderEventsFrom:        time.Now(),
 	}
 
 	// Wrap the operation in a transaction
@@ -580,8 +581,19 @@ func (s *campaignService) UpdateCampaignStatus(project string, campaignID uint, 
 			return fmt.Errorf("campaign is already in status '%s'", newStatus)
 		}
 
-		// Update the campaign status
-		if err := tx.Model(&campaign).Update("status", newStatus).Error; err != nil {
+		// Prepare update fields
+		updateFields := map[string]interface{}{
+			"status": newStatus,
+		}
+
+		// If status is changing to active, update ConsiderEventsFrom timestamp
+		if newStatus == "active" {
+			now := time.Now()
+			updateFields["consider_events_from"] = now
+		}
+
+		// Update the campaign status and ConsiderEventsFrom if applicable
+		if err := tx.Model(&campaign).Updates(updateFields).Error; err != nil {
 			return fmt.Errorf("failed to update the campaign status to '%s': %w", newStatus, err)
 		}
 

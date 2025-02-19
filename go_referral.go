@@ -12,7 +12,8 @@ type ReferralService struct {
 	Campaigns         service.CampaignService
 	Members           service.MemberService
 	EventLogs         service.EventLogService
-	RewardService     service.RewardService
+	CampaignEventLog  service.CampaignEventLogService
+	Reward            service.RewardService
 	AggregatorService service.AggregatorService
 	Worker            service.Worker
 }
@@ -24,7 +25,8 @@ func NewReferralService(db *gorm.DB) *ReferralService {
 		Campaigns:         serviceimpl.NewCampaignService(db),
 		Members:           serviceimpl.NewReferrerService(db),
 		EventLogs:         serviceimpl.NewEventLogService(db),
-		RewardService:     serviceimpl.NewRewardService(db),
+		CampaignEventLog:  serviceimpl.NewCampaignEventLogService(db),
+		Reward:            serviceimpl.NewRewardService(db),
 		AggregatorService: serviceimpl.NewAggregatorService(db),
 		Worker:            serviceimpl.NewWorkerService(db),
 	}
