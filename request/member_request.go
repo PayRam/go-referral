@@ -46,7 +46,11 @@ func ApplyGetMemberRequest(req GetMemberRequest, query *gorm.DB) *gorm.DB {
 		query = query.Where("referral_members.code = ?", *req.Code)
 	}
 	if req.IsReferred != nil {
-		query = query.Where("referral_members.referred_by_member_id IS NOT NULL")
+		if *req.IsReferred {
+			query = query.Where("referral_members.referred_by_member_id IS NOT NULL")
+		} else {
+			query = query.Where("referral_members.referred_by_member_id IS NULL")
+		}
 	}
 	if req.ReferredByMemberID != nil {
 		query = query.Where("referral_members.referred_by_member_id = ?", *req.ReferredByMemberID)
