@@ -170,20 +170,20 @@ func (s *campaignService) CreateCampaign(project string, req request.CreateCampa
 	}
 
 	if req.RewardType != nil && *req.RewardType == "percentage" && paymentCount != 1 {
-		return nil, errors.New("only  one event with event type 'payment' is required for campaigns with 'percentage' reward type")
+		return nil, errors.New("only one event with event type 'payment' is required for campaigns with 'percentage' reward type")
 	}
 
 	if req.InviteeRewardType != nil && *req.InviteeRewardType == "percentage" && paymentCount != 1 {
 		return nil, errors.New("only one event with event type 'payment' is required for campaigns with 'percentage' invitee reward type")
 	}
 
-	if req.RewardType != nil && *req.RewardType == "flat_fee" && paymentCount > 0 {
-		return nil, errors.New("no event with event type 'payment' is allowed for campaigns with 'flat_fee' reward type")
-	}
-
-	if req.InviteeRewardType != nil && *req.InviteeRewardType == "flat_fee" && paymentCount > 0 {
-		return nil, errors.New("no event with event type 'payment' is allowed for campaigns with 'flat_fee' invitee reward type")
-	}
+	//if req.RewardType != nil && *req.RewardType == "flat_fee" && paymentCount > 0 {
+	//	return nil, errors.New("no event with event type 'payment' is allowed for campaigns with 'flat_fee' reward type")
+	//}
+	//
+	//if req.InviteeRewardType != nil && *req.InviteeRewardType == "flat_fee" && paymentCount > 0 {
+	//	return nil, errors.New("no event with event type 'payment' is allowed for campaigns with 'flat_fee' invitee reward type")
+	//}
 
 	// Create the campaign object
 	campaign := &models.Campaign{
@@ -448,21 +448,21 @@ func (s *campaignService) UpdateCampaign(project string, id uint, req request.Up
 
 	if req.EventKeys != nil && len(req.EventKeys) > 0 {
 
-		if campaign.RewardType != nil && *campaign.RewardType == "percentage" && paymentCount == 0 {
+		if campaign.RewardType != nil && *campaign.RewardType == "percentage" && paymentCount != 1 {
 			return nil, errors.New("at least one event with event type 'payment' is required for campaigns with 'percentage' reward type")
 		}
 
-		if campaign.InviteeRewardType != nil && *campaign.InviteeRewardType == "percentage" && paymentCount == 0 {
+		if campaign.InviteeRewardType != nil && *campaign.InviteeRewardType == "percentage" && paymentCount != 1 {
 			return nil, errors.New("at least one event with event type 'payment' is required for campaigns with 'percentage' invitee reward type")
 		}
 
-		if campaign.RewardType != nil && *campaign.RewardType == "flat_fee" && paymentCount > 0 {
-			return nil, errors.New("no event with event type 'payment' is allowed for campaigns with 'flat_fee' reward type")
-		}
-
-		if campaign.InviteeRewardType != nil && *campaign.InviteeRewardType == "flat_fee" && paymentCount > 0 {
-			return nil, errors.New("no event with event type 'payment' is allowed for campaigns with 'flat_fee' invitee reward type")
-		}
+		//if campaign.RewardType != nil && *campaign.RewardType == "flat_fee" && paymentCount > 0 {
+		//	return nil, errors.New("no event with event type 'payment' is allowed for campaigns with 'flat_fee' reward type")
+		//}
+		//
+		//if campaign.InviteeRewardType != nil && *campaign.InviteeRewardType == "flat_fee" && paymentCount > 0 {
+		//	return nil, errors.New("no event with event type 'payment' is allowed for campaigns with 'flat_fee' invitee reward type")
+		//}
 	}
 
 	// Wrap the operation in a transaction

@@ -16,6 +16,8 @@ type worker struct {
 	DB *gorm.DB
 }
 
+var ErrExceedsBudget = errors.New("exceeds budget")
+
 //var _ service.Worker = &worker{}
 
 func NewWorkerService(db *gorm.DB) *worker {
@@ -28,6 +30,12 @@ func (w *worker) ProcessPendingEvents() error {
 	// Fetch all active campaigns with preloaded events
 	var campaigns []models.Campaign
 	currentDate := time.Now()
+
+	if err := w.DB.Model(&models.Campaign{}).
+		Where("status = ? AND end_date < ?", "active", currentDate).
+		Update("status", "archived").Error; err != nil {
+		fmt.Printf("failed to archive expired campaigns: %v\n", err)
+	}
 
 	if err := w.DB.
 		Preload("Events").
@@ -46,8 +54,8 @@ func (w *worker) ProcessPendingEvents() error {
 			Select("el.*").
 			Joins("LEFT JOIN referral_campaign_event_logs rces ON el.id = rces.event_log_id AND rces.campaign_id = ?", campaign.ID).
 			Where("el.project = ? AND el.status = ? AND el.event_key IN (?) AND rces.event_log_id IS NULL",
-											campaign.Project, "pending", eventKeys).
-			Where("el.created_at > ?", campaign.ConsiderEventsFrom). // ✅ Ensures only recent logs are considered
+				campaign.Project, "pending", eventKeys).
+			Where("el.created_at > ?", campaign.ConsiderEventsFrom).
 			Order("el.id ASC").
 			Find(&eventLogs).Error; err != nil {
 			fmt.Printf("failed to fetch pending EventLogs for campaign %d: %v\n", campaign.ID, err)
@@ -153,7 +161,19 @@ func (w *worker) ProcessPendingEvents() error {
 
 					// Check if total rewards exceed budget
 					if totalRewards.Add(calculatedTotalRewards).GreaterThan(*campaign.Budget) {
-						return fmt.Errorf("exceeds budget")
+						result := tx.Debug().Model(&models.Campaign{}).
+							Where("id = ?", campaign.ID).
+							Update("status", "paused")
+
+						if result.Error != nil {
+							return fmt.Errorf("failed to pause campaign due to budget overuse: %w", result.Error)
+						}
+
+						if err := tx.Commit().Error; err != nil {
+							return fmt.Errorf("failed to commit transaction after updating campaign: %w", err)
+						}
+
+						return ErrExceedsBudget
 					}
 				}
 
@@ -232,6 +252,10 @@ func (w *worker) ProcessPendingEvents() error {
 			if err != nil {
 				// Log the error and continue with other campaigns
 				fmt.Printf("Error processing campaign %d: %v\n", campaign.ID, err)
+				if errors.Is(err, ErrExceedsBudget) {
+					fmt.Printf("Break Campaign %d exceeds budget\n", campaign.ID)
+					break
+				}
 			}
 		}
 	}
