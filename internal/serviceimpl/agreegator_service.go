@@ -1,9 +1,11 @@
 package serviceimpl
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/PayRam/go-referral/request"
 	"github.com/PayRam/go-referral/response"
+	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"strings"
 	"time"
@@ -32,16 +34,15 @@ func (s *aggregatorService) GetReferrerMembersStats(req request.GetMemberRequest
 			referral_members.reference_id AS reference_id,
 			referral_members.code AS code,
 			COUNT(DISTINCT rr.id) AS referee_count,
-			COALESCE(SUM(re.amount), 0) AS total_rewards,
+			COALESCE(CAST(SUM(re.amount) AS TEXT), '0') AS total_rewards,
 			CASE 
-					WHEN referral_members.referred_by_member_id IS NOT NULL AND referral_members.referred_by_member_id > 0 
-					THEN TRUE 
-					ELSE FALSE 
-				END
-			AS is_referred,
+				WHEN referral_members.referred_by_member_id IS NOT NULL AND referral_members.referred_by_member_id > 0 
+				THEN TRUE 
+				ELSE FALSE 
+			END AS is_referred,
 			referral_members.created_at AS created_at,
 			referral_members.updated_at AS updated_at,
-			referral_members.deleted_at AS deleted_at
+			COALESCE(CAST(referral_members.deleted_at AS TEXT), '') AS deleted_at 
 		`).
 		Joins(`
 			LEFT JOIN referral_members rr ON referral_members.id = rr.referred_by_member_id AND referral_members.project = rr.project
@@ -56,26 +57,62 @@ func (s *aggregatorService) GetReferrerMembersStats(req request.GetMemberRequest
 			JOIN referral_members_campaigns rc ON rc.member_id = referral_members.id AND rc.project = referral_members.project
 		`).Where("rc.campaign_id IN (?)", req.CampaignIDs)
 	}
-	//query = query.Where("referral_members.referred_by_member_id IS NULL")
 
-	// Group the results to avoid duplicates
-	//query = query.Group("referral_referrer.id, referral_referrer.project, referral_referrer.email, referral_referrer.reference_id, referral_referrer.code, referral_referrer.created_at, referral_referrer.updated_at, referral_referrer.deleted_at")
-	query = query.Group("referral_members.project, referral_members.reference_id")
+	// **Fix Grouping Issues**
+	query = query.Group(`
+		referral_members.id, referral_members.project, referral_members.email, referral_members.reference_id,
+		referral_members.code, referral_members.created_at, referral_members.updated_at, referral_members.deleted_at
+	`)
 
+	// Apply filters
 	query = request.ApplyGetMemberRequest(req, query)
 
-	// Calculate total count before applying pagination
-	countQuery := query
+	// **Fix Count Query to Avoid Pagination**
+	countQuery := s.DB.Table("(?) AS subquery", query).Select("COUNT(*)")
 	if err := countQuery.Count(&totalCount).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to count events: %w", err)
+		return nil, 0, fmt.Errorf("failed to count referrer stats: %w", err)
 	}
 
-	// Apply pagination conditions
+	// Apply pagination after counting
 	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
-	// Execute the query
-	if err := query.Scan(&result).Error; err != nil {
+	// Execute the query and scan results
+	rows, err := query.Rows()
+	if err != nil {
 		return nil, 0, fmt.Errorf("failed to fetch referrers with stats: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var referrer response.ReferrerStats
+		var totalRewardsStr string
+		var email sql.NullString
+		var deletedAt sql.NullString // ✅ Handling possible NULLs
+
+		err := rows.Scan(
+			&referrer.ID, &referrer.Project, &email, &referrer.ReferenceID, &referrer.Code,
+			&referrer.RefereeCount, &totalRewardsStr, &referrer.IsReferred,
+			&referrer.CreatedAt, &referrer.UpdatedAt, &deletedAt, // ✅ Added deletedAt
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan referrer stats: %w", err)
+		}
+
+		// Convert email NULL handling
+		if email.Valid {
+			referrer.Email = &email.String
+		} else {
+			referrer.Email = nil
+		}
+
+		// Convert total_rewards from string to decimal.Decimal
+		totalRewards, convErr := decimal.NewFromString(totalRewardsStr)
+		if convErr != nil {
+			return nil, 0, fmt.Errorf("failed to parse total_rewards: %w", convErr)
+		}
+
+		referrer.TotalRewards = totalRewards
+		result = append(result, referrer)
 	}
 
 	return result, totalCount, nil

@@ -20,10 +20,10 @@ func NewRewardService(db *gorm.DB) *rewardService {
 }
 
 func (s *rewardService) GetTotalRewards(req request.GetRewardRequest) (decimal.Decimal, error) {
-	var totalAmount decimal.Decimal
+	var totalAmountStr string
 
 	// Build the query
-	query := s.DB.Model(&models.Reward{}).Select("COALESCE(SUM(amount), 0) AS total")
+	query := s.DB.Model(&models.Reward{}).Select("COALESCE(CAST(SUM(amount) AS TEXT), '0') AS total")
 
 	// Apply filters
 	query = request.ApplyGetRewardRequest(req, query)
@@ -31,17 +31,18 @@ func (s *rewardService) GetTotalRewards(req request.GetRewardRequest) (decimal.D
 	// Apply pagination conditions
 	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
-	// Calculate the sum
-	if err := query.Scan(&totalAmount).Error; err != nil {
+	// Fetch the SUM as a string to avoid precision issues
+	if err := query.Scan(&totalAmountStr).Error; err != nil {
 		return decimal.Zero, fmt.Errorf("failed to calculate total rewards: %w", err)
 	}
 
-	// Ensure totalAmount is set to zero if no records are found
-	if totalAmount.IsZero() {
-		return decimal.Zero, nil
+	// Convert the string to decimal.Decimal
+	totalAmount, err := decimal.NewFromString(totalAmountStr)
+	if err != nil {
+		return decimal.Zero, fmt.Errorf("failed to parse total rewards amount: %w", err)
 	}
 
-	return totalAmount.Round(6), nil
+	return totalAmount, nil
 }
 
 // GetRewards fetches rewards based on the provided request
