@@ -286,6 +286,48 @@ func (s *campaignService) GetTotalCampaigns(req request.GetCampaignsRequest) (in
 
 // UpdateCampaign updates an existing campaign
 func (s *campaignService) UpdateCampaign(project string, id uint, req request.UpdateCampaignRequest) (*models.Campaign, error) {
+	var campaign models.Campaign
+
+	// Fetch the campaign first
+	if err := s.DB.Where("id = ? AND project = ?", id, project).First(&campaign).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("campaign not found for project %s and id %d", project, id)
+		}
+		return nil, err
+	}
+
+	currentTime := time.Now()
+
+	isOngoing := campaign.StartDate.Before(currentTime) && campaign.EndDate.After(currentTime)
+	isFuture := campaign.StartDate.After(currentTime)
+
+	if !isOngoing && !isFuture {
+		return nil, errors.New("cannot update a campaign that has ended")
+	}
+
+	// If the campaign is ongoing, restrict the fields that can be updated
+	if isOngoing {
+		if req.Name == nil && req.Budget == nil && req.Description == nil && req.EndDate == nil {
+			return nil, errors.New("only Name, Budget, Description, and EndDate can be updated for ongoing campaigns")
+		}
+	}
+
+	// If updating the budget, ensure it is not less than the total rewards distributed
+	if req.Budget != nil {
+		var totalRewards decimal.Decimal
+		err := s.DB.Model(&models.Reward{}).
+			Where("project = ? AND campaign_id = ?", project, campaign.ID).
+			Select("COALESCE(SUM(amount), 0)").
+			Scan(&totalRewards).Error
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to calculate total rewards: %w", err)
+		}
+
+		if req.Budget.Cmp(totalRewards) < 0 {
+			return nil, fmt.Errorf("budget cannot be less than the total rewards distributed (%.18s)", totalRewards.String())
+		}
+	}
 
 	if req.Name != nil && *req.Name == "" {
 		return nil, errors.New("name cannot be empty")
@@ -424,11 +466,6 @@ func (s *campaignService) UpdateCampaign(project string, id uint, req request.Up
 		}
 	}
 
-	// Prepare the updates
-	updates := map[string]interface{}{}
-
-	updates = request.UpdateCampaignFields(req, updates)
-
 	// Validate the date range
 	if req.StartDate != nil && req.EndDate != nil {
 		if req.StartDate.After(*req.EndDate) {
@@ -436,14 +473,29 @@ func (s *campaignService) UpdateCampaign(project string, id uint, req request.Up
 		}
 	}
 
-	var campaign models.Campaign
+	// Prepare the updates
+	updates := map[string]interface{}{}
 
-	// Fetch the campaign first
-	if err := s.DB.Where("id = ? AND project = ?", id, project).First(&campaign).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("campaign not found for project %s and id %d", project, id)
+	// If the campaign is future, allow updating all fields
+	if isFuture {
+		updates = request.UpdateCampaignFields(req, updates)
+	} else {
+		// Ongoing campaign: Only update allowed fields
+		if req.Name != nil {
+			updates["name"] = *req.Name
 		}
-		return nil, err
+		if req.Budget != nil {
+			updates["budget"] = req.Budget
+		}
+		if req.Description != nil {
+			updates["description"] = req.Description
+		}
+		if req.EndDate != nil {
+			if req.EndDate.Before(currentTime) {
+				return nil, errors.New("end date cannot be in the past")
+			}
+			updates["end_date"] = req.EndDate
+		}
 	}
 
 	if req.EventKeys != nil && len(req.EventKeys) > 0 {
@@ -455,14 +507,6 @@ func (s *campaignService) UpdateCampaign(project string, id uint, req request.Up
 		if campaign.InviteeRewardType != nil && *campaign.InviteeRewardType == "percentage" && paymentCount != 1 {
 			return nil, errors.New("at least one event with event type 'payment' is required for campaigns with 'percentage' invitee reward type")
 		}
-
-		//if campaign.RewardType != nil && *campaign.RewardType == "flat_fee" && paymentCount > 0 {
-		//	return nil, errors.New("no event with event type 'payment' is allowed for campaigns with 'flat_fee' reward type")
-		//}
-		//
-		//if campaign.InviteeRewardType != nil && *campaign.InviteeRewardType == "flat_fee" && paymentCount > 0 {
-		//	return nil, errors.New("no event with event type 'payment' is allowed for campaigns with 'flat_fee' invitee reward type")
-		//}
 	}
 
 	// Wrap the operation in a transaction
