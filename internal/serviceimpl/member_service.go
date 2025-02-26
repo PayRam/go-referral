@@ -254,6 +254,12 @@ func (s *referrerService) GetTotalMembers(req request.GetMemberRequest) (int64, 
 
 	query = request.ApplyGetMemberRequest(req, query)
 
+	// Apply Select Fields
+	query = request.ApplySelectFields(query, req.PaginationConditions.SelectFields)
+
+	// Apply Group By
+	query = request.ApplyGroupBy(query, req.PaginationConditions.GroupBy)
+
 	// Count the records
 	if err := query.Count(&count).Error; err != nil {
 		return 0, fmt.Errorf("failed to count referrers: %w", err)
