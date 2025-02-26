@@ -177,14 +177,6 @@ func (s *campaignService) CreateCampaign(project string, req request.CreateCampa
 		return nil, errors.New("only one event with event type 'payment' is required for campaigns with 'percentage' invitee reward type")
 	}
 
-	//if req.RewardType != nil && *req.RewardType == "flat_fee" && paymentCount > 0 {
-	//	return nil, errors.New("no event with event type 'payment' is allowed for campaigns with 'flat_fee' reward type")
-	//}
-	//
-	//if req.InviteeRewardType != nil && *req.InviteeRewardType == "flat_fee" && paymentCount > 0 {
-	//	return nil, errors.New("no event with event type 'payment' is allowed for campaigns with 'flat_fee' invitee reward type")
-	//}
-
 	// Create the campaign object
 	campaign := &models.Campaign{
 		Project:                   project,
@@ -250,6 +242,12 @@ func (s *campaignService) GetCampaigns(req request.GetCampaignsRequest) ([]model
 	query := s.DB.Model(&models.Campaign{})
 
 	query = request.ApplyGetCampaignRequest(req, query)
+
+	// Apply Select Fields
+	query = request.ApplySelectFields(query, req.PaginationConditions.SelectFields)
+
+	// Apply Group By
+	query = request.ApplyGroupBy(query, req.PaginationConditions.GroupBy)
 
 	// Calculate total count before applying pagination
 	countQuery := query
@@ -524,6 +522,9 @@ func (s *campaignService) UpdateCampaign(project string, id uint, req request.Up
 
 		if len(updates) > 0 {
 			// Apply the updates
+			if _, ok := updates["budget"]; ok {
+				updates["status"] = "active"
+			}
 			if err := tx.Model(&campaign).Updates(updates).Error; err != nil {
 				return fmt.Errorf("failed to update campaign: %w", err)
 			}

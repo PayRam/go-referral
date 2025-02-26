@@ -806,6 +806,20 @@ func TestPauseCampaignOnBudgetExceeds(t *testing.T) {
 	assert.Equal(t, rewards[1].ID, *campaignEventLogs[0].RefereeRewardID)
 	assert.Equal(t, rewards[2].ID, *campaignEventLogs[1].ReferredRewardID)
 	assert.Equal(t, rewards[3].ID, *campaignEventLogs[1].RefereeRewardID)
+
+	budget = decimal.NewFromFloat(200.00)
+	_, err = referralService.Campaigns.UpdateCampaign(project, campaign.ID, request.UpdateCampaignRequest{
+		Budget: &budget,
+	})
+	assert.Error(t, err)
+
+	budget = decimal.NewFromFloat(500.00)
+	campaign, err = referralService.Campaigns.UpdateCampaign(project, campaign.ID, request.UpdateCampaignRequest{
+		Budget: &budget,
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, "active", campaign.Status)
+	assert.Equal(t, budget.String(), campaign.Budget.String())
 }
 
 func TestUpdateCampaignToArchivedStateOnEndDatePassed(t *testing.T) {

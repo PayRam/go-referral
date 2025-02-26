@@ -19,6 +19,22 @@ type PaginationConditions struct {
 	UpdatedBefore *time.Time `form:"updatedBefore"` // Filter records updated before this date
 	StartDate     *time.Time `form:"startDate"`     // Filter records created after this date
 	EndDate       *time.Time `form:"endDate"`       // Filter records created after this date
+	GroupBy       *string    `form:"groupBy"`
+	SelectFields  []string   `form:"selectFields"`
+}
+
+func ApplySelectFields(query *gorm.DB, selectFields []string) *gorm.DB {
+	if len(selectFields) > 0 {
+		query = query.Select(selectFields)
+	}
+	return query
+}
+
+func ApplyGroupBy(query *gorm.DB, groupBy *string) *gorm.DB {
+	if groupBy != nil && *groupBy != "" {
+		query = query.Group(*groupBy)
+	}
+	return query
 }
 
 func ApplyPaginationConditions(query *gorm.DB, conditions PaginationConditions) *gorm.DB {

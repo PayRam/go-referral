@@ -28,6 +28,12 @@ func (s *rewardService) GetTotalRewards(req request.GetRewardRequest) (decimal.D
 	// Apply filters
 	query = request.ApplyGetRewardRequest(req, query)
 
+	// Apply Select Fields
+	query = request.ApplySelectFields(query, req.PaginationConditions.SelectFields)
+
+	// Apply Group By
+	query = request.ApplyGroupBy(query, req.PaginationConditions.GroupBy)
+
 	// Apply pagination conditions
 	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
@@ -55,6 +61,12 @@ func (s *rewardService) GetRewards(req request.GetRewardRequest) ([]models.Rewar
 
 	// Apply filters
 	query = request.ApplyGetRewardRequest(req, query)
+
+	// Apply Select Fields
+	query = request.ApplySelectFields(query, req.PaginationConditions.SelectFields)
+
+	// Apply Group By
+	query = request.ApplyGroupBy(query, req.PaginationConditions.GroupBy)
 
 	// Calculate total count before applying pagination
 	countQuery := query

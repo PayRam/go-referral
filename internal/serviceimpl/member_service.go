@@ -111,6 +111,12 @@ func (s *referrerService) GetMembers(req request.GetMemberRequest) ([]models.Mem
 
 	query = request.ApplyGetMemberRequest(req, query)
 
+	// Apply Select Fields
+	query = request.ApplySelectFields(query, req.PaginationConditions.SelectFields)
+
+	// Apply Group By
+	query = request.ApplyGroupBy(query, req.PaginationConditions.GroupBy)
+
 	// Calculate total count before applying pagination
 	countQuery := query
 	if err := countQuery.Count(&count).Error; err != nil {

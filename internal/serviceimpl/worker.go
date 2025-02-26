@@ -129,8 +129,8 @@ func (w *worker) ProcessPendingEvents() error {
 					}
 				}
 				if refereeRewardAmount != nil {
-					if campaign.RewardCap != nil && refereeRewardAmount.GreaterThan(*campaign.InviteeRewardCap) {
-						refereeRewardAmount = campaign.RewardCap
+					if campaign.InviteeRewardCap != nil && refereeRewardAmount.GreaterThan(*campaign.InviteeRewardCap) {
+						refereeRewardAmount = campaign.InviteeRewardCap
 					}
 
 					err = w.validateReward(tx, err, project, campaign, member.ReferenceID, refereeRewardAmount)
@@ -160,7 +160,7 @@ func (w *worker) ProcessPendingEvents() error {
 					}
 
 					// Check if total rewards exceed budget
-					if totalRewards.Add(calculatedTotalRewards).GreaterThan(*campaign.Budget) {
+					if totalRewards.Add(calculatedTotalRewards).GreaterThanOrEqual(*campaign.Budget) {
 						result := tx.Debug().Model(&models.Campaign{}).
 							Where("id = ?", campaign.ID).
 							Update("status", "paused")
@@ -172,8 +172,10 @@ func (w *worker) ProcessPendingEvents() error {
 						if err := tx.Commit().Error; err != nil {
 							return fmt.Errorf("failed to commit transaction after updating campaign: %w", err)
 						}
+						if totalRewards.Add(calculatedTotalRewards).GreaterThan(*campaign.Budget) {
+							return ErrExceedsBudget
+						}
 
-						return ErrExceedsBudget
 					}
 				}
 

@@ -130,6 +130,12 @@ func (s *eventService) GetEvents(req request.GetEventsRequest) ([]models.Event, 
 	// Apply filters
 	query = request.ApplyGetEventRequest(req, query)
 
+	// Apply Select Fields
+	query = request.ApplySelectFields(query, req.PaginationConditions.SelectFields)
+
+	// Apply Group By
+	query = request.ApplyGroupBy(query, req.PaginationConditions.GroupBy)
+
 	// Calculate total count before applying pagination
 	countQuery := query
 	if err := countQuery.Count(&count).Error; err != nil {

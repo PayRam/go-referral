@@ -28,6 +28,12 @@ func (s *campaignEventLogService) GetCampaignEventLogs(req request.GetCampaignEv
 
 	query = request.ApplyGetCampaignEventLogRequest(req, query)
 
+	// Apply Select Fields
+	query = request.ApplySelectFields(query, req.PaginationConditions.SelectFields)
+
+	// Apply Group By
+	query = request.ApplyGroupBy(query, req.PaginationConditions.GroupBy)
+
 	// Calculate total count before applying pagination
 	countQuery := query
 	if err := countQuery.Count(&count).Error; err != nil {
