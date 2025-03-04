@@ -198,7 +198,7 @@ func TestOneTimeCampaign(t *testing.T) {
 	})
 
 	// Create a campaign using event keys
-	startDate := time.Now()
+	startDate := time.Now().UTC()
 	endDate := startDate.AddDate(0, 1, 0) // One month from start date
 	budget := decimal.NewFromFloat(100.00)
 	description := "Campaign for new user signups and payments"
@@ -320,7 +320,7 @@ func TestRecurringCampaignWithRewardCapAndLimitedBudget(t *testing.T) {
 	})
 
 	// Create a campaign using event keys
-	startDate := time.Now()
+	startDate := time.Now().UTC()
 	endDate := startDate.AddDate(0, 1, 0) // One month from start date
 	budget := decimal.NewFromFloat(30.00)
 	description := "Campaign for new user signups and payments"
@@ -415,7 +415,7 @@ func TestRecurringCampaignWithMaxOccurrencesPerCustomer(t *testing.T) {
 	})
 
 	// Create a campaign using event keys
-	startDate := time.Now()
+	startDate := time.Now().UTC()
 	endDate := startDate.AddDate(0, 1, 0) // One month from start date
 	budget := decimal.NewFromFloat(3000.00)
 	description := "Campaign for new user signups and payments"
@@ -507,7 +507,7 @@ func TestEventsSharedByCampaigns(t *testing.T) {
 	})
 
 	// Campaign 1
-	startDate := time.Now()
+	startDate := time.Now().UTC()
 	endDate := startDate.AddDate(0, 1, 0) // One month from start date
 	budget := decimal.NewFromFloat(3000.00)
 	description := "Campaign for new user signups and payments"
@@ -533,7 +533,7 @@ func TestEventsSharedByCampaigns(t *testing.T) {
 	})
 
 	// Campaign 2
-	startDate = time.Now()
+	startDate = time.Now().UTC()
 	endDate = startDate.AddDate(0, 1, 0) // One month from start date
 	budget = decimal.NewFromFloat(3000.00)
 	description = "Campaign for new user signups and payments"
@@ -638,8 +638,8 @@ func TestFutureCampaign(t *testing.T) {
 	})
 
 	// Campaign 1
-	startDate := time.Now().AddDate(0, 0, 1) // One day from now
-	endDate := startDate.AddDate(0, 1, 0)    // One month from start date
+	startDate := time.Now().UTC().AddDate(0, 0, 1) // One day from now
+	endDate := startDate.AddDate(0, 1, 0)          // One month from start date
 	budget := decimal.NewFromFloat(3000.00)
 	description := "Campaign for new user signups and payments"
 	var rewardType = "percentage"
@@ -714,7 +714,7 @@ func TestPauseCampaignOnBudgetExceeds(t *testing.T) {
 	})
 
 	// Create a campaign using event keys
-	startDate := time.Now()
+	startDate := time.Now().UTC()
 	endDate := startDate.AddDate(0, 1, 0) // One month from start date
 	budget := decimal.NewFromFloat(300.00)
 	description := "Campaign for new user signups and payments"
@@ -835,7 +835,7 @@ func TestUpdateCampaignToArchivedStateOnEndDatePassed(t *testing.T) {
 	})
 
 	// Create a campaign using event keys
-	startDate := time.Now()
+	startDate := time.Now().UTC()
 	endDate := startDate.Add(time.Second * 2) // One month from start date
 	budget := decimal.NewFromFloat(300.00)
 	description := "Campaign for new user signups and payments"

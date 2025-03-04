@@ -52,7 +52,7 @@ func (s *eventLogService) CreateEventLog(project string, req request.CreateEvent
 		MemberID:          member.ID,       // ✅ Store the Member ID
 		MemberReferenceID: req.ReferenceID, // ✅ Keep Reference ID for consistency
 		Amount:            req.Amount,
-		TriggeredAt:       time.Now(),
+		TriggeredAt:       time.Now().UTC(),
 		Data:              req.Data,
 		Status:            "pending",
 	}

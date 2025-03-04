@@ -198,7 +198,7 @@ func (s *campaignService) CreateCampaign(project string, req request.CreateCampa
 		MaxOccurrencesPerCustomer: req.MaxOccurrencesPerCustomer,
 		RewardCapPerCustomer:      req.RewardCapPerCustomer,
 		Status:                    "active",
-		ConsiderEventsFrom:        time.Now(),
+		ConsiderEventsFrom:        time.Now().UTC(),
 	}
 
 	// Wrap the operation in a transaction
@@ -672,7 +672,7 @@ func (s *campaignService) UpdateCampaignStatus(project string, campaignID uint, 
 
 		// If status is changing to active, update ConsiderEventsFrom timestamp
 		if newStatus == "active" {
-			now := time.Now()
+			now := time.Now().UTC()
 			updateFields["consider_events_from"] = now
 		}
 

@@ -29,7 +29,7 @@ func NewWorkerService(db *gorm.DB) *worker {
 func (w *worker) ProcessPendingEvents() error {
 	// Fetch all active campaigns with preloaded events
 	var campaigns []models.Campaign
-	currentDate := time.Now()
+	currentDate := time.Now().UTC()
 
 	if err := w.DB.Model(&models.Campaign{}).
 		Where("status = ? AND end_date < ?", "active", currentDate).
@@ -55,7 +55,7 @@ func (w *worker) ProcessPendingEvents() error {
 			Joins("LEFT JOIN referral_campaign_event_logs rces ON el.id = rces.event_log_id AND rces.campaign_id = ?", campaign.ID).
 			Where("el.project = ? AND el.status = ? AND el.event_key IN (?) AND rces.event_log_id IS NULL",
 				campaign.Project, "pending", eventKeys).
-			Where("el.created_at > ?", campaign.ConsiderEventsFrom).
+			Where("el.triggered_at > ?", campaign.ConsiderEventsFrom).
 			Order("el.id ASC").
 			Find(&eventLogs).Error; err != nil {
 			fmt.Printf("failed to fetch pending EventLogs for campaign %d: %v\n", campaign.ID, err)
@@ -175,7 +175,6 @@ func (w *worker) ProcessPendingEvents() error {
 						if totalRewards.Add(calculatedTotalRewards).GreaterThan(*campaign.Budget) {
 							return ErrExceedsBudget
 						}
-
 					}
 				}
 
