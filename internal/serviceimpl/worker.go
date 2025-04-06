@@ -81,6 +81,12 @@ func (w *worker) ProcessPendingEvents() error {
 					return fmt.Errorf("failed to lock event logs: %w", err)
 				}
 
+				var event models.Event
+				if err := tx.Where("project = ? AND key = ?", campaign.Project, logs[0].EventKey).First(&event).Error; err != nil {
+					fmt.Printf("failed to fetch event for project %s and key %s: %v\n", campaign.Project, logs[0].EventKey, err)
+					return err
+				}
+
 				project := campaign.Project
 				refereeReferenceID := logs[0].MemberReferenceID
 
@@ -225,7 +231,7 @@ func (w *worker) ProcessPendingEvents() error {
 					entry := models.CampaignEventLog{
 						Project:           campaign.Project,
 						CampaignID:        campaign.ID,
-						EventID:           logs[i].ID,                // Assuming you have eventID from previous logic
+						EventID:           event.ID,                  // Assuming you have eventID from previous logic
 						MemberID:          logs[i].MemberID,          // Assuming you have memberID from previous logic
 						MemberReferenceID: logs[i].MemberReferenceID, // Assuming you have memberReferenceID from previous logic
 						Status:            "processed",
