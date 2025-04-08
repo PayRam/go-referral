@@ -302,37 +302,26 @@ func (w *worker) GetTotalRewardByMember(
 	referrerReferenceID string,
 ) (decimal.Decimal, int, int64, error) {
 	var totalReward decimal.Decimal
-	var firstRewardMonthStr sql.NullString
+	var firstRewardMonth sql.NullTime
 	var rewardsCount int64
 
-	// Query the rewards table to calculate the total reward and get the first reward month and rewards count
 	err := tx.Model(&models.Reward{}).
 		Where("project = ? AND campaign_id = ? AND rewarded_member_reference_id = ?", project, campaignID, referrerReferenceID).
-		Select("COALESCE(SUM(amount), 0) AS total_reward, MIN(created_at) AS first_reward_month, COUNT(*) AS rewards_count").
-		Row().Scan(&totalReward, &firstRewardMonthStr, &rewardsCount)
+		Select("COALESCE(SUM(amount), 0), MIN(created_at), COUNT(*)").
+		Row().Scan(&totalReward, &firstRewardMonth, &rewardsCount)
 
 	if err != nil {
-		// Return an error only if it's a database error
 		return decimal.Zero, 0, 0, fmt.Errorf("failed to calculate total reward: %w", err)
 	}
 
-	// If no rewards exist, return 0 values and no error
-	if rewardsCount == 0 {
+	if rewardsCount == 0 || !firstRewardMonth.Valid {
 		return decimal.Zero, 0, 0, nil
 	}
 
-	// Parse firstRewardMonth
-	var firstRewardMonth *time.Time
-	parsedTime, parseErr := time.Parse("2006-01-02 15:04:05-07:00", firstRewardMonthStr.String)
-	if parseErr != nil {
-		return decimal.Zero, 0, 0, fmt.Errorf("failed to parse first reward month: %w", parseErr)
-	}
-	firstRewardMonth = &parsedTime
-
 	// Calculate months passed
 	currentTime := time.Now()
-	years := currentTime.Year() - firstRewardMonth.Year()
-	months := int(currentTime.Month() - firstRewardMonth.Month())
+	years := currentTime.Year() - firstRewardMonth.Time.Year()
+	months := int(currentTime.Month() - firstRewardMonth.Time.Month())
 	monthsPassed := (years * 12) + months
 
 	return totalReward, monthsPassed, rewardsCount, nil

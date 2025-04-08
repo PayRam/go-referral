@@ -8,9 +8,10 @@ import (
 	"github.com/PayRam/go-referral/utils"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log"
+	"os"
 	"testing"
 	"time"
 )
@@ -21,18 +22,47 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	// Initialize shared test database
+	// Connection details: connect to the default "postgres" database without username/password
+	dsn := "host=localhost port=5432 dbname=postgres sslmode=disable client_encoding=UTF8" // No user/password needed
+
 	var err error
-	db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	//db, err = gorm.Open(sqlite.Open("/Users/sameer/Documents/test1.db"), &gorm.Config{})
+
+	// Open the connection to PostgreSQL without authentication
+	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		panic("failed to initialize test database")
+		panic(fmt.Sprintf("failed to connect to PostgreSQL: %v", err))
 	}
 
+	// Create a temporary test database
+	//testDbName := "test_" + strconv.Itoa(int(time.Now().Unix()))
+	testDbName := "test_db"
+	if err := db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s;", testDbName)).Error; err != nil {
+		fmt.Printf("failed to drop test database: %v\n", err)
+	}
+	if err := db.Exec(fmt.Sprintf("CREATE DATABASE %s;", testDbName)).Error; err != nil {
+		panic(fmt.Sprintf("failed to create test database: %v", err))
+	}
+
+	// Switch to the newly created test database
+	dsnTestDb := fmt.Sprintf("host=localhost port=5432 dbname=%s sslmode=disable client_encoding=UTF8", testDbName)
+	db, err = gorm.Open(postgres.Open(dsnTestDb), &gorm.Config{})
+	if err != nil {
+		panic(fmt.Sprintf("failed to switch to test database: %v", err))
+	}
+
+	// Initialize the referral service with the test DB
 	referralService = go_referral.NewReferralService(db)
 
 	// Run tests
-	m.Run()
+	code := m.Run()
+
+	// Clean up: drop the test database after tests
+	//if err := db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s;", testDbName)).Error; err != nil {
+	//	fmt.Printf("failed to drop test database: %v\n", err)
+	//}
+
+	// Exit with the test result code
+	os.Exit(code)
 }
 
 func createEvent(t *testing.T, project string, req request.CreateEventRequest) *models.Event {

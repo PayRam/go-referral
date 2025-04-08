@@ -68,7 +68,7 @@ func (s *aggregatorService) GetReferrerMembersStats(req request.GetMemberRequest
 	query = request.ApplyGetMemberRequest(req, query)
 
 	// **Fix Count Query to Avoid Pagination**
-	countQuery := s.DB.Table("(?) AS subquery", query).Select("COUNT(*)")
+	countQuery := s.DB.Raw("SELECT COUNT(*) FROM (?) AS sub", query)
 	if err := countQuery.Count(&totalCount).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count referrer stats: %w", err)
 	}
@@ -127,9 +127,7 @@ func (s *aggregatorService) GetRewardsStats(req request.GetRewardRequest) ([]res
 			return nil, nil
 		}
 
-		// Replace space with 'T' to match RFC3339Nano format
 		ts = strings.Replace(ts, " ", "T", 1)
-
 		parsed, err := time.Parse(time.RFC3339Nano, ts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse timestamp: %w", err)
@@ -141,25 +139,22 @@ func (s *aggregatorService) GetRewardsStats(req request.GetRewardRequest) ([]res
 	if req.PaginationConditions.StartDate == nil || req.PaginationConditions.EndDate == nil {
 		var dateRangeStartStr, dateRangeEndStr string
 
-		// Fetch the earliest and latest created_at values from the database
 		if err := s.DB.Table("referral_rewards").
-			Select("COALESCE(MIN(created_at), '')").
+			Select(`COALESCE(TO_CHAR(MIN(created_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), '')`).
 			Row().Scan(&dateRangeStartStr); err != nil {
 			return nil, fmt.Errorf("failed to fetch earliest created_at date: %w", err)
 		}
 
 		if err := s.DB.Table("referral_rewards").
-			Select("COALESCE(MAX(created_at), '')").
+			Select(`COALESCE(TO_CHAR(MAX(created_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), '')`).
 			Row().Scan(&dateRangeEndStr); err != nil {
 			return nil, fmt.Errorf("failed to fetch latest created_at date: %w", err)
 		}
 
-		// Handle case when no records exist
 		if dateRangeStartStr == "" || dateRangeEndStr == "" {
-			return []response.RewardStats{}, nil // Return an empty result
+			return []response.RewardStats{}, nil
 		}
 
-		// Parse the fetched dates
 		if req.PaginationConditions.StartDate == nil {
 			parsed, err := parseTimestamp(dateRangeStartStr)
 			if err != nil {
@@ -176,37 +171,34 @@ func (s *aggregatorService) GetRewardsStats(req request.GetRewardRequest) ([]res
 		}
 	}
 
-	// Construct the query
-	query := s.DB.Table("referral_rewards").
-		Select(`
-			CASE 
-				WHEN 33 THEN printf('%s %d', 
-					substr('JanFebMarAprMayJunJulAugSepOctNovDec', (strftime('%m', created_at) - 1) * 3 + 1, 3),
-					CAST(strftime('%d', created_at) AS INTEGER))
-				WHEN 190 THEN printf('%s %d',
-					substr('JanFebMarAprMayJunJulAugSepOctNovDec',
-						(strftime('%m', created_at, 'weekday 1', '-7 days') - 1) * 3 + 1, 3),
-					CAST(strftime('%d', created_at, 'weekday 1', '-7 days') AS INTEGER))
-				ELSE printf('%s %d',
-					substr('JanFebMarAprMayJunJulAugSepOctNovDec', (strftime('%m', created_at) - 1) * 3 + 1, 3),
-					cast(strftime('%Y', created_at) as integer))
-			END AS date,
+	// Calculate day range for date grouping
+	duration := req.PaginationConditions.EndDate.Sub(*req.PaginationConditions.StartDate)
+	days := int(duration.Hours() / 24)
+
+	// Use raw SQL to support dynamic CASE in SELECT and GROUP BY
+	dateCaseExpr := `
+		CASE
+			WHEN $1 <= 33 THEN TO_CHAR(created_at, 'Mon DD')
+			WHEN $1 <= 190 THEN TO_CHAR(created_at - INTERVAL '1 week', 'Mon DD')
+			ELSE TO_CHAR(created_at, 'Mon YYYY')
+		END
+	`
+
+	rawSQL := fmt.Sprintf(`
+		SELECT
+			%s AS date,
 			SUM(amount) AS total_rewards,
 			COUNT(DISTINCT rewarded_member_reference_id) AS unique_referrers
-		`).
-		Where(`
-			created_at BETWEEN
-				COALESCE(?, (SELECT MIN(created_at) FROM referral_rewards)) AND
-				COALESCE(?, (SELECT MAX(created_at) FROM referral_rewards))
-		`, req.PaginationConditions.StartDate, req.PaginationConditions.EndDate).
-		Group("date").
-		Order("created_at ASC")
+		FROM referral_rewards
+		WHERE created_at BETWEEN
+			COALESCE($2, (SELECT MIN(created_at) FROM referral_rewards)) AND
+			COALESCE($3, (SELECT MAX(created_at) FROM referral_rewards))
+		GROUP BY %s
+		ORDER BY MIN(created_at)
+	`, dateCaseExpr, dateCaseExpr)
 
-	// Apply filters
-	query = request.ApplyGetRewardRequest(req, query)
-
-	// Execute the query
-	if err := query.Scan(&results).Error; err != nil {
+	if err := s.DB.Raw(rawSQL, days, req.PaginationConditions.StartDate, req.PaginationConditions.EndDate).
+		Scan(&results).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch rewards stats: %w", err)
 	}
 

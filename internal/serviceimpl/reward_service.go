@@ -29,13 +29,13 @@ func (s *rewardService) GetTotalRewards(req request.GetRewardRequest) (decimal.D
 	query = request.ApplyGetRewardRequest(req, query)
 
 	// Apply Select Fields
-	query = request.ApplySelectFields(query, req.PaginationConditions.SelectFields)
+	//query = request.ApplySelectFields(query, req.PaginationConditions.SelectFields)
 
 	// Apply Group By
 	query = request.ApplyGroupBy(query, req.PaginationConditions.GroupBy)
 
 	// Apply pagination conditions
-	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
+	//query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
 	// Fetch the SUM as a string to avoid precision issues
 	if err := query.Scan(&totalAmountStr).Error; err != nil {
