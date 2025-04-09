@@ -72,16 +72,14 @@ func ApplyPaginationConditions(query *gorm.DB, conditions PaginationConditions) 
 		query = query.Where("created_at <= ?", *conditions.EndDate)
 	}
 
-	// Apply sorting
-	sortBy := "id"
+	// ✅ Sorting logic
 	if conditions.SortBy != nil {
-		sortBy = *conditions.SortBy
+		order := "ASC"
+		if conditions.Order != nil {
+			order = *conditions.Order
+		}
+		query = query.Order(fmt.Sprintf("%s %s", *conditions.SortBy, order))
 	}
-	order := "DESC"
-	if conditions.Order != nil {
-		order = *conditions.Order
-	}
-	query = query.Order(fmt.Sprintf("%s %s", sortBy, order))
 
 	// Apply limit
 	if conditions.Limit != nil && *conditions.Limit > 0 {
