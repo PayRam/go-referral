@@ -1,9 +1,10 @@
 package models
 
 import (
+	"time"
+
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
-	"time"
 )
 
 type BaseModel struct {
@@ -72,7 +73,7 @@ func (CampaignEvent) TableName() string {
 	return "referral_campaign_events"
 }
 
-type Member struct {
+type Customer struct {
 	BaseModel
 	Project     string  `gorm:"size:100;not null;uniqueIndex:idx_referrer_project_reference_id" json:"project"`
 	ReferenceID string  `gorm:"size:100;not null;uniqueIndex:idx_referrer_project_reference_id" json:"referenceId"`
@@ -80,42 +81,42 @@ type Member struct {
 	Code        string  `gorm:"size:50;uniqueIndex;not null" json:"code"`
 	Status      string  `gorm:"size:50;default:'active';index" json:"status"`
 
-	ReferredByMemberID          *uint   `gorm:"index" json:"referredByMemberID"`          // Nullable, points to another Member
-	ReferredByMemberReferenceID *string `gorm:"index" json:"referredByMemberReferenceID"` // Nullable, points to another Member
-	ReferredByMember            *Member `gorm:"foreignKey:ReferredByMemberID" json:"referredByMember,omitempty"`
+	ReferredByCustomerID          *uint     `gorm:"index" json:"referredByCustomerID"`          // Nullable, points to another Customer
+	ReferredByCustomerReferenceID *string   `gorm:"index" json:"referredByCustomerReferenceID"` // Nullable, points to another Customer
+	ReferredByCustomer            *Customer `gorm:"foreignKey:ReferredByCustomerID" json:"referredByCustomer,omitempty"`
 
-	Campaigns []Campaign `gorm:"many2many:referral_member_campaigns;joinForeignKey:MemberID;joinReferences:CampaignID" json:"campaigns"`
+	Campaigns []Campaign `gorm:"many2many:referral_customer_campaigns;joinForeignKey:CustomerID;joinReferences:CampaignID" json:"campaigns"`
 }
 
-func (Member) TableName() string {
-	return "referral_members"
+func (Customer) TableName() string {
+	return "referral_customers"
 }
 
-type MemberCampaign struct {
+type CustomerCampaign struct {
 	Project    string   `gorm:"not null;size:100;" json:"project"`
-	MemberID   uint     `gorm:"not null;uniqueIndex:idx_referral_referrer_campaign" json:"memberID"`
+	CustomerID uint     `gorm:"not null;uniqueIndex:idx_referral_referrer_campaign" json:"customerID"`
 	CampaignID uint     `gorm:"not null;uniqueIndex:idx_referral_referrer_campaign" json:"campaignID"`
 	Campaign   Campaign `gorm:"foreignKey:CampaignID;references:ID" json:"campaign"`
-	Member     Member   `gorm:"foreignKey:MemberID;references:ID" json:"member"`
+	Customer   Customer `gorm:"foreignKey:CustomerID;references:ID" json:"customer"`
 }
 
-func (MemberCampaign) TableName() string {
-	return "referral_member_campaigns"
+func (CustomerCampaign) TableName() string {
+	return "referral_customer_campaigns"
 }
 
 type EventLog struct {
 	BaseModel
-	Project           string           `gorm:"size:100;not null;index" json:"project"`
-	EventKey          string           `gorm:"size:100;not null;index" foreignKey:"Key" references:"Event" json:"eventKey"`
-	MemberID          uint             `gorm:"not null:index" json:"memberID"`
-	MemberReferenceID string           `gorm:"size:100;not null;index" json:"memberReferenceID"`
-	Amount            *decimal.Decimal `gorm:"type:decimal(38,18);index" json:"amount"`
-	TriggeredAt       time.Time        `gorm:"not null;index" json:"triggeredAt"`
-	Data              *string          `gorm:"type:json;" json:"data"`
-	Status            string           `gorm:"size:50;default:'pending';not null;index" json:"status"`
-	FailureReason     *string          `gorm:"type:text" json:"failureReason"`
+	Project             string           `gorm:"size:100;not null;index" json:"project"`
+	EventKey            string           `gorm:"size:100;not null;index" foreignKey:"Key" references:"Event" json:"eventKey"`
+	CustomerID          uint             `gorm:"not null:index" json:"customerID"`
+	CustomerReferenceID string           `gorm:"size:100;not null;index" json:"customerReferenceID"`
+	Amount              *decimal.Decimal `gorm:"type:decimal(38,18);index" json:"amount"`
+	TriggeredAt         time.Time        `gorm:"not null;index" json:"triggeredAt"`
+	Data                *string          `gorm:"type:json;" json:"data"`
+	Status              string           `gorm:"size:50;default:'pending';not null;index" json:"status"`
+	FailureReason       *string          `gorm:"type:text" json:"failureReason"`
 
-	Member *Member `gorm:"foreignKey:MemberID;references:ID" json:"member"`
+	Customer *Customer `gorm:"foreignKey:CustomerID;references:ID" json:"customer"`
 }
 
 func (EventLog) TableName() string {
@@ -124,19 +125,19 @@ func (EventLog) TableName() string {
 
 type CampaignEventLog struct {
 	BaseModel
-	Project           string `gorm:"size:100;not null;index" json:"project"`
-	CampaignID        uint   `gorm:"not null;index" json:"campaignID"` // The campaign the event is associated with
-	EventID           uint   `gorm:"not null;index" json:"eventID"`    // The event being tracked
-	MemberID          uint   `gorm:"not null;index" json:"memberID"`   // The member who triggered the event
-	MemberReferenceID string `gorm:"size:100;not null;index" json:"memberReferenceID"`
-	Status            string `gorm:"size:50;default:'pending';not null;index" json:"status"` // 'pending', 'completed'
-	EventLogID        uint   `gorm:"not null;index" json:"eventLogID"`
-	ReferredRewardID  *uint  `gorm:"index" json:"referredRewardID"`
-	RefereeRewardID   *uint  `gorm:"index" json:"refereeRewardID"` // Reference to the original event log
+	Project             string `gorm:"size:100;not null;index" json:"project"`
+	CampaignID          uint   `gorm:"not null;index" json:"campaignID"` // The campaign the event is associated with
+	EventID             uint   `gorm:"not null;index" json:"eventID"`    // The event being tracked
+	CustomerID          uint   `gorm:"not null;index" json:"customerID"` // The customer who triggered the event
+	CustomerReferenceID string `gorm:"size:100;not null;index" json:"customerReferenceID"`
+	Status              string `gorm:"size:50;default:'pending';not null;index" json:"status"` // 'pending', 'completed'
+	EventLogID          uint   `gorm:"not null;index" json:"eventLogID"`
+	ReferredRewardID    *uint  `gorm:"index" json:"referredRewardID"`
+	RefereeRewardID     *uint  `gorm:"index" json:"refereeRewardID"` // Reference to the original event log
 
 	Campaign       *Campaign `gorm:"foreignKey:CampaignID" json:"campaign"`
 	Event          *Event    `gorm:"foreignKey:EventID" json:"event"`
-	Member         *Member   `gorm:"foreignKey:MemberID" json:"member"`
+	Customer       *Customer `gorm:"foreignKey:CustomerID" json:"customer"`
 	ReferredReward *Reward   `gorm:"foreignKey:ReferredRewardID" json:"referredReward"`
 	RefereeReward  *Reward   `gorm:"foreignKey:RefereeRewardID" json:"refereeReward"`
 }
@@ -147,20 +148,20 @@ func (CampaignEventLog) TableName() string {
 
 type Reward struct {
 	BaseModel
-	Project                   string          `gorm:"size:100;not null;index" json:"project"`
-	CampaignID                uint            `gorm:"not null;index" json:"campaignId"`
-	CurrencyCode              string          `gorm:"type:varchar(20);not null;index" json:"currencyCode"`
-	RewardedMemberID          uint            `gorm:"not null;index" json:"rewardedMemberID"`
-	RewardedMemberReferenceID string          `gorm:"size:100;not null;index" json:"rewardedMemberReferenceID"`
-	RelatedMemberID           uint            `gorm:"not null;index" json:"relatedMemberID"`
-	RelatedMemberReferenceID  string          `gorm:"size:100;not null;index" json:"relatedMemberReferenceID"`
-	MemberType                string          `gorm:"size:50;not null;index" json:"memberType"`
-	Amount                    decimal.Decimal `gorm:"type:decimal(38,18);not null;index" json:"amount"`
-	Status                    string          `gorm:"size:50;default:'pending';not null;index" json:"status"`
-	Reason                    *string         `gorm:"type:text" json:"reason"`
+	Project                     string          `gorm:"size:100;not null;index" json:"project"`
+	CampaignID                  uint            `gorm:"not null;index" json:"campaignId"`
+	CurrencyCode                string          `gorm:"type:varchar(20);not null;index" json:"currencyCode"`
+	RewardedCustomerID          uint            `gorm:"not null;index" json:"rewardedCustomerID"`
+	RewardedCustomerReferenceID string          `gorm:"size:100;not null;index" json:"rewardedCustomerReferenceID"`
+	RelatedCustomerID           uint            `gorm:"not null;index" json:"relatedCustomerID"`
+	RelatedCustomerReferenceID  string          `gorm:"size:100;not null;index" json:"relatedCustomerReferenceID"`
+	CustomerType                string          `gorm:"size:50;not null;index" json:"customerType"`
+	Amount                      decimal.Decimal `gorm:"type:decimal(38,18);not null;index" json:"amount"`
+	Status                      string          `gorm:"size:50;default:'pending';not null;index" json:"status"`
+	Reason                      *string         `gorm:"type:text" json:"reason"`
 
-	RewardedMember *Member `gorm:"foreignKey:RewardedMemberID;references:ID" json:"rewardedMember,omitempty"`
-	RelatedMember  *Member `gorm:"foreignKey:RelatedMemberID;references:ID" json:"relatedMember,omitempty"`
+	RewardedCustomer *Customer `gorm:"foreignKey:RewardedCustomerID;references:ID" json:"rewardedCustomer,omitempty"`
+	RelatedCustomer  *Customer `gorm:"foreignKey:RelatedCustomerID;references:ID" json:"relatedCustomer,omitempty"`
 }
 
 func (Reward) TableName() string {

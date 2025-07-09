@@ -3,12 +3,13 @@ package serviceimpl
 import (
 	"database/sql"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/PayRam/go-referral/request"
 	"github.com/PayRam/go-referral/response"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
-	"strings"
-	"time"
 )
 
 type aggregatorService struct {
@@ -21,7 +22,7 @@ func NewAggregatorService(db *gorm.DB) *aggregatorService {
 	return &aggregatorService{DB: db}
 }
 
-func (s *aggregatorService) GetReferrerMembersStats(req request.GetMemberRequest) ([]response.ReferrerStats, int64, error) {
+func (s *aggregatorService) GetReferrerCustomersStats(req request.GetCustomerRequest) ([]response.ReferrerStats, int64, error) {
 	var result []response.ReferrerStats
 	var totalCount int64
 
@@ -36,7 +37,7 @@ func (s *aggregatorService) GetReferrerMembersStats(req request.GetMemberRequest
 			COUNT(DISTINCT rr.id) AS referee_count,
 			COALESCE(CAST(SUM(re.amount) AS TEXT), '0') AS total_rewards,
 			CASE 
-				WHEN referral_members.referred_by_member_id IS NOT NULL AND referral_members.referred_by_member_id > 0 
+				WHEN referral_members.referred_by_customer_id IS NOT NULL AND referral_members.referred_by_customer_id > 0 
 				THEN TRUE 
 				ELSE FALSE 
 			END AS is_referred,
@@ -45,16 +46,16 @@ func (s *aggregatorService) GetReferrerMembersStats(req request.GetMemberRequest
 			COALESCE(CAST(referral_members.deleted_at AS TEXT), '') AS deleted_at 
 		`).
 		Joins(`
-			LEFT JOIN referral_members rr ON referral_members.id = rr.referred_by_member_id AND referral_members.project = rr.project
+			LEFT JOIN referral_members rr ON referral_members.id = rr.referred_by_customer_id AND referral_members.project = rr.project
 		`).
 		Joins(`
-			LEFT JOIN referral_rewards re ON referral_members.id = re.rewarded_member_id AND referral_members.project = re.project
+			LEFT JOIN referral_rewards re ON referral_members.id = re.rewarded_customer_id AND referral_members.project = re.project
 		`)
 
 	// Apply campaign IDs filter if provided
 	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
 		query = query.Joins(`
-			JOIN referral_members_campaigns rc ON rc.member_id = referral_members.id AND rc.project = referral_members.project
+			JOIN referral_members_campaigns rc ON rc.customer_id = referral_members.id AND rc.project = referral_members.project
 		`).Where("rc.campaign_id IN (?)", req.CampaignIDs)
 	}
 
@@ -65,7 +66,7 @@ func (s *aggregatorService) GetReferrerMembersStats(req request.GetMemberRequest
 	`)
 
 	// Apply filters
-	query = request.ApplyGetMemberRequest(req, query)
+	query = request.ApplyGetCustomerRequest(req, query)
 
 	// **Fix Count Query to Avoid Pagination**
 	countQuery := s.DB.Raw("SELECT COUNT(*) FROM (?) AS sub", query)

@@ -2,7 +2,7 @@ package request
 
 import "gorm.io/gorm"
 
-type CreateMemberRequest struct {
+type CreateCustomerRequest struct {
 	ReferenceID   string  `json:"referenceID" binding:"required"`
 	ReferrerCode  *string `json:"referrerCode"`
 	PreferredCode *string `json:"preferredCode"`
@@ -10,12 +10,12 @@ type CreateMemberRequest struct {
 	Email         *string `json:"email"`
 }
 
-type UpdateMemberRequest struct {
+type UpdateCustomerRequest struct {
 	CampaignIDs []uint  `json:"campaignIDs"`
 	Email       *string `json:"email"`
 }
 
-type GetMemberRequest struct {
+type GetCustomerRequest struct {
 	Projects                    []string             `form:"projects"`    // Filter by name
 	ID                          *uint                `form:"id"`          // Filter by ID
 	ReferenceID                 *string              `form:"referenceID"` // Composite key with Project
@@ -23,12 +23,12 @@ type GetMemberRequest struct {
 	Code                        *string              `form:"code"`
 	CampaignIDs                 []uint               `form:"campaignIDs"`
 	IsReferred                  *bool                `form:"isReferrer"`
-	ReferredByMemberID          *uint                `form:"referredByMemberID"`
-	ReferredByMemberReferenceID *string              `form:"referredByMemberReferenceID"`
+	ReferredByCustomerID          *uint                `form:"referredByCustomerID"`
+	ReferredByCustomerReferenceID *string              `form:"referredByCustomerReferenceID"`
 	PaginationConditions        PaginationConditions `form:"paginationConditions"` // Embedded pagination and sorting struct
 }
 
-func ApplyGetMemberRequest(req GetMemberRequest, query *gorm.DB) *gorm.DB {
+func ApplyGetCustomerRequest(req GetCustomerRequest, query *gorm.DB) *gorm.DB {
 	// Apply filters with explicit table name
 	if req.Projects != nil && len(req.Projects) > 0 {
 		query = query.Where("referral_members.project IN (?)", req.Projects)
@@ -47,16 +47,16 @@ func ApplyGetMemberRequest(req GetMemberRequest, query *gorm.DB) *gorm.DB {
 	}
 	if req.IsReferred != nil {
 		if *req.IsReferred {
-			query = query.Where("referral_members.referred_by_member_id IS NOT NULL")
+			query = query.Where("referral_members.referred_by_customer_id IS NOT NULL")
 		} else {
-			query = query.Where("referral_members.referred_by_member_id IS NULL")
+			query = query.Where("referral_members.referred_by_customer_id IS NULL")
 		}
 	}
-	if req.ReferredByMemberID != nil {
-		query = query.Where("referral_members.referred_by_member_id = ?", *req.ReferredByMemberID)
+	if req.ReferredByCustomerID != nil {
+		query = query.Where("referral_members.referred_by_customer_id = ?", *req.ReferredByCustomerID)
 	}
-	if req.ReferredByMemberReferenceID != nil {
-		query = query.Where("referral_members.referred_by_member_reference_id = ?", *req.ReferredByMemberReferenceID)
+	if req.ReferredByCustomerReferenceID != nil {
+		query = query.Where("referral_members.referred_by_member_reference_id = ?", *req.ReferredByCustomerReferenceID)
 	}
 	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
 		// Join with referral_members_campaigns table to filter by CampaignIDs

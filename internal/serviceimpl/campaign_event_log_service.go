@@ -2,6 +2,7 @@ package serviceimpl
 
 import (
 	"fmt"
+
 	"github.com/PayRam/go-referral/models"
 	"github.com/PayRam/go-referral/request"
 	"gorm.io/gorm"
@@ -44,7 +45,7 @@ func (s *campaignEventLogService) GetCampaignEventLogs(req request.GetCampaignEv
 	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
 	// Fetch records with pagination
-	if err := query.Preload("Campaign").Preload("Event").Preload("Member").Preload("ReferredReward").Preload("RefereeReward").Find(&campaignEventLogs).Error; err != nil {
+	if err := query.Preload("Campaign").Preload("Event").Preload("Customer").Preload("ReferredReward").Preload("RefereeReward").Find(&campaignEventLogs).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to fetch campaignEventLogs: %w", err)
 	}
 

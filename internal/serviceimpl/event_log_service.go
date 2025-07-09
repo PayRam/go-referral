@@ -3,10 +3,11 @@ package serviceimpl
 import (
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/PayRam/go-referral/models"
 	"github.com/PayRam/go-referral/request"
 	"gorm.io/gorm"
-	"time"
 )
 
 type eventLogService struct {
@@ -28,8 +29,8 @@ func (s *eventLogService) CreateEventLog(project string, req request.CreateEvent
 		return nil, fmt.Errorf("failed to fetch event with key '%s' for project '%s': %w", req.EventKey, project, err)
 	}
 
-	// 🔹 Step 2: Fetch the Member using ReferenceID
-	var member models.Member
+	// 🔹 Step 2: Fetch the Customer using ReferenceID
+	var member models.Customer
 	if err := s.DB.Where("project = ? AND reference_id = ?", project, req.ReferenceID).First(&member).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch member with reference ID '%s' for project '%s': %w", req.ReferenceID, project, err)
 	}
@@ -47,14 +48,14 @@ func (s *eventLogService) CreateEventLog(project string, req request.CreateEvent
 
 	// 🔹 Step 4: Create the Event Log
 	eventLog := &models.EventLog{
-		Project:           project,
-		EventKey:          req.EventKey,
-		MemberID:          member.ID,       // ✅ Store the Member ID
-		MemberReferenceID: req.ReferenceID, // ✅ Keep Reference ID for consistency
-		Amount:            req.Amount,
-		TriggeredAt:       time.Now().UTC(),
-		Data:              req.Data,
-		Status:            "pending",
+		Project:             project,
+		EventKey:            req.EventKey,
+		CustomerID:          member.ID,       // ✅ Store the Customer ID
+		CustomerReferenceID: req.ReferenceID, // ✅ Keep Reference ID for consistency
+		Amount:              req.Amount,
+		TriggeredAt:         time.Now().UTC(),
+		Data:                req.Data,
+		Status:              "pending",
 	}
 
 	// 🔹 Step 5: Save the Event Log in DB
@@ -91,7 +92,7 @@ func (s *eventLogService) GetEventLogs(req request.GetEventLogRequest) ([]models
 	query = request.ApplyPaginationConditions(query, req.PaginationConditions)
 
 	// Fetch records with pagination
-	if err := query.Preload("Member").Preload("ReferredReward").Preload("RefereeReward").Find(&eventLogs).Error; err != nil {
+	if err := query.Preload("Customer").Preload("ReferredReward").Preload("RefereeReward").Find(&eventLogs).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to fetch eventLogs: %w", err)
 	}
 

@@ -5,10 +5,10 @@ import "gorm.io/gorm"
 type GetRewardRequest struct {
 	Projects                  []string             `form:"projects"`                  // Filter by name
 	IDs                       []uint               `form:"ids"`                       // Filter by ID
-	RelatedMemberID           *uint                `form:"relatedMemberID"`           // Filter by ID
-	RelatedMemberReferenceID  *string              `form:"relatedMemberReferenceID"`  // Composite key with Project
-	RewardedMemberID          *uint                `form:"rewardedMemberID"`          // Filter by ID
-	RewardedMemberReferenceID *string              `form:"rewardedMemberReferenceID"` // Composite key with Project
+	RelatedCustomerID           *uint                `form:"relatedCustomerID"`           // Filter by ID
+	RelatedCustomerReferenceID  *string              `form:"relatedCustomerReferenceID"`  // Composite key with Project
+	RewardedCustomerID          *uint                `form:"rewardedCustomerID"`          // Filter by ID
+	RewardedCustomerReferenceID *string              `form:"rewardedCustomerReferenceID"` // Composite key with Project
 	CurrencyCode              *string              `json:"currencyCode"`
 	Status                    *string              `form:"status"`               // Composite key with Project
 	CampaignIDs               []uint               `form:"campaignIDs"`          // Filter by ID
@@ -25,17 +25,17 @@ func ApplyGetRewardRequest(req GetRewardRequest, query *gorm.DB) *gorm.DB {
 	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
 		query = query.Where("referral_rewards.campaign_id IN (?)", req.CampaignIDs)
 	}
-	if req.RelatedMemberID != nil {
-		query = query.Where("referral_rewards.related_member_id = ?", *req.RelatedMemberID)
+	if req.RelatedCustomerID != nil {
+		query = query.Where("referral_rewards.related_customer_id = ?", *req.RelatedCustomerID)
 	}
-	if req.RelatedMemberReferenceID != nil {
-		query = query.Where("referral_rewards.related_member_reference_id = ?", *req.RelatedMemberReferenceID)
+	if req.RelatedCustomerReferenceID != nil {
+		query = query.Where("referral_rewards.related_member_reference_id = ?", *req.RelatedCustomerReferenceID)
 	}
-	if req.RewardedMemberID != nil {
-		query = query.Where("referral_rewards.rewarded_member_id = ?", *req.RewardedMemberID)
+	if req.RewardedCustomerID != nil {
+		query = query.Where("referral_rewards.rewarded_customer_id = ?", *req.RewardedCustomerID)
 	}
-	if req.RewardedMemberReferenceID != nil {
-		query = query.Where("referral_rewards.rewarded_member_reference_id = ?", *req.RewardedMemberReferenceID)
+	if req.RewardedCustomerReferenceID != nil {
+		query = query.Where("referral_rewards.rewarded_member_reference_id = ?", *req.RewardedCustomerReferenceID)
 	}
 	if req.CurrencyCode != nil {
 		query = query.Where("referral_rewards.currency_code = ?", *req.CurrencyCode)

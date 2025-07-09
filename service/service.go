@@ -25,13 +25,13 @@ type CampaignService interface {
 	UpdateCampaignStatus(project string, campaignID uint, newStatus string) (*models.Campaign, error)
 }
 
-// MemberService handles operations related to referral codes
-type MemberService interface {
-	CreateMember(project string, req request.CreateMemberRequest) (*models.Member, error)
-	GetMembers(req request.GetMemberRequest) ([]models.Member, int64, error)
-	GetTotalMembers(req request.GetMemberRequest) (int64, error)
-	UpdateMember(project, referenceID string, request request.UpdateMemberRequest) (*models.Member, error)
-	UpdateMemberStatus(project, referenceID string, newStatus string) (*models.Member, error)
+// CustomerService handles operations related to referral codes
+type CustomerService interface {
+	CreateCustomer(project string, req request.CreateCustomerRequest) (*models.Customer, error)
+	GetCustomers(req request.GetCustomerRequest) ([]models.Customer, int64, error)
+	GetTotalCustomers(req request.GetCustomerRequest) (int64, error)
+	UpdateCustomer(project, referenceID string, request request.UpdateCustomerRequest) (*models.Customer, error)
+	UpdateCustomerStatus(project, referenceID string, newStatus string) (*models.Customer, error)
 }
 
 type EventLogService interface {
@@ -51,7 +51,7 @@ type RewardService interface {
 }
 
 type AggregatorService interface {
-	GetReferrerMembersStats(req request.GetMemberRequest) ([]response.ReferrerStats, int64, error)
+	GetReferrerCustomersStats(req request.GetCustomerRequest) ([]response.ReferrerStats, int64, error)
 	GetRewardsStats(req request.GetRewardRequest) ([]response.RewardStats, error)
 }
 

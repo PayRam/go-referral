@@ -10,7 +10,7 @@ import (
 type ReferralService struct {
 	Events            service.EventService
 	Campaigns         service.CampaignService
-	Members           service.MemberService
+	Customers         service.CustomerService
 	EventLogs         service.EventLogService
 	CampaignEventLog  service.CampaignEventLogService
 	Reward            service.RewardService
@@ -23,7 +23,7 @@ func NewReferralService(db *gorm.DB) *ReferralService {
 	return &ReferralService{
 		Events:            serviceimpl.NewEventService(db),
 		Campaigns:         serviceimpl.NewCampaignService(db),
-		Members:           serviceimpl.NewReferrerService(db),
+		Customers:         serviceimpl.NewReferrerService(db),
 		EventLogs:         serviceimpl.NewEventLogService(db),
 		CampaignEventLog:  serviceimpl.NewCampaignEventLogService(db),
 		Reward:            serviceimpl.NewRewardService(db),

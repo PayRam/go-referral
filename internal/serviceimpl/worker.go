@@ -62,7 +62,7 @@ func (w *worker) ProcessPendingEvents() error {
 			continue
 		}
 
-		// Group EventLogs by ReferredByMemberReferenceID and ReferenceType
+		// Group EventLogs by ReferredByCustomerReferenceID and ReferenceType
 		eventLogGroups := groupEventLogs(eventLogs, eventKeys)
 
 		if eventLogGroups == nil {
@@ -88,18 +88,18 @@ func (w *worker) ProcessPendingEvents() error {
 				}
 
 				project := campaign.Project
-				refereeReferenceID := logs[0].MemberReferenceID
+				refereeReferenceID := logs[0].CustomerReferenceID
 
-				var member models.Member
-				if err := tx.Preload("ReferredByMember").
+				var member models.Customer
+				if err := tx.Preload("ReferredByCustomer").
 					Where("project = ? AND reference_id = ?", campaign.Project, refereeReferenceID).
 					First(&member).Error; err != nil {
 					fmt.Printf("failed to fetch referee for project %s and reference_id %s: %v\n", campaign.Project, refereeReferenceID, err)
 					return err
 				}
 
-				if member.ReferredByMember == nil || member.ReferredByMember.Status != "active" {
-					fmt.Printf("Member is either nil or inactive for reference_id %s\n", refereeReferenceID)
+				if member.ReferredByCustomer == nil || member.ReferredByCustomer.Status != "active" {
+					fmt.Printf("Customer is either nil or inactive for reference_id %s\n", refereeReferenceID)
 					return nil
 				}
 
@@ -111,8 +111,8 @@ func (w *worker) ProcessPendingEvents() error {
 				if campaign.CampaignTypePerCustomer == "one_time" {
 					var existingReward models.Reward
 					if err := tx.Where("project = ? AND campaign_id = ? AND rewarded_member_reference_id = ?",
-						project, campaign.ID, member.ReferredByMember.ReferenceID).First(&existingReward).Error; err == nil {
-						return fmt.Errorf("reward already exists for campaign %d and referrer %s", campaign.ID, member.ReferredByMember.ReferenceID)
+						project, campaign.ID, member.ReferredByCustomer.ReferenceID).First(&existingReward).Error; err == nil {
+						return fmt.Errorf("reward already exists for campaign %d and referrer %s", campaign.ID, member.ReferredByCustomer.ReferenceID)
 					}
 				}
 
@@ -129,7 +129,7 @@ func (w *worker) ProcessPendingEvents() error {
 						referrerRewardAmount = campaign.RewardCap
 					}
 
-					err = w.validateReward(tx, err, project, campaign, member.ReferredByMember.ReferenceID, referrerRewardAmount)
+					err = w.validateReward(tx, err, project, campaign, member.ReferredByCustomer.ReferenceID, referrerRewardAmount)
 					if err != nil {
 						return err
 					}
@@ -192,11 +192,11 @@ func (w *worker) ProcessPendingEvents() error {
 						Project:                   project,
 						CampaignID:                campaign.ID,
 						CurrencyCode:              campaign.CurrencyCode,
-						RewardedMemberID:          member.ReferredByMember.ID,
-						RewardedMemberReferenceID: member.ReferredByMember.ReferenceID,
-						RelatedMemberID:           member.ID,
-						RelatedMemberReferenceID:  member.ReferenceID,
-						MemberType:                "referrer",
+						RewardedCustomerID:          member.ReferredByCustomer.ID,
+						RewardedCustomerReferenceID: member.ReferredByCustomer.ReferenceID,
+						RelatedCustomerID:           member.ID,
+						RelatedCustomerReferenceID:  member.ReferenceID,
+						CustomerType:                "referrer",
 						Amount:                    *referrerRewardAmount,
 						Status:                    "pending",
 					}
@@ -211,11 +211,11 @@ func (w *worker) ProcessPendingEvents() error {
 						Project:                   project,
 						CampaignID:                campaign.ID,
 						CurrencyCode:              campaign.CurrencyCode,
-						RewardedMemberID:          member.ID,
-						RewardedMemberReferenceID: member.ReferenceID,
-						RelatedMemberID:           member.ReferredByMember.ID,
-						RelatedMemberReferenceID:  member.ReferredByMember.ReferenceID,
-						MemberType:                "referee",
+						RewardedCustomerID:          member.ID,
+						RewardedCustomerReferenceID: member.ReferenceID,
+						RelatedCustomerID:           member.ReferredByCustomer.ID,
+						RelatedCustomerReferenceID:  member.ReferredByCustomer.ReferenceID,
+						CustomerType:                "referee",
 						Amount:                    *refereeRewardAmount,
 						Status:                    "pending",
 					}
@@ -232,8 +232,8 @@ func (w *worker) ProcessPendingEvents() error {
 						Project:           campaign.Project,
 						CampaignID:        campaign.ID,
 						EventID:           event.ID,                  // Assuming you have eventID from previous logic
-						MemberID:          logs[i].MemberID,          // Assuming you have memberID from previous logic
-						MemberReferenceID: logs[i].MemberReferenceID, // Assuming you have memberReferenceID from previous logic
+						CustomerID:          logs[i].CustomerID,          // Assuming you have memberID from previous logic
+						CustomerReferenceID: logs[i].CustomerReferenceID, // Assuming you have memberReferenceID from previous logic
 						Status:            "processed",
 						EventLogID:        eventLogID,
 					}
@@ -272,9 +272,9 @@ func (w *worker) ProcessPendingEvents() error {
 
 func (w *worker) validateReward(tx *gorm.DB, err error, project string, campaign models.Campaign, referenceID string, rewardAmount *decimal.Decimal) error {
 	// Validate limits
-	referrerTotalReward, referrerMonthsPassed, referrerRewardsCount, err := w.GetTotalRewardByMember(tx, project, campaign.ID, referenceID)
+	referrerTotalReward, referrerMonthsPassed, referrerRewardsCount, err := w.GetTotalRewardByCustomer(tx, project, campaign.ID, referenceID)
 	if err != nil {
-		fmt.Printf("GetTotalRewardByMember: failed to calculate total reward for campaign %d: %v\n", campaign.ID, err)
+		fmt.Printf("GetTotalRewardByCustomer: failed to calculate total reward for campaign %d: %v\n", campaign.ID, err)
 		return err
 	}
 
@@ -295,7 +295,7 @@ func (w *worker) validateReward(tx *gorm.DB, err error, project string, campaign
 	return nil
 }
 
-func (w *worker) GetTotalRewardByMember(
+func (w *worker) GetTotalRewardByCustomer(
 	tx *gorm.DB,
 	project string,
 	campaignID uint,
@@ -425,7 +425,7 @@ func groupEventLogs(eventLogs []models.EventLog, requiredKeys []string) [][]mode
 	for _, log := range eventLogs {
 		added := false
 		for i, group := range eventLogsArray {
-			if group[0].MemberReferenceID == log.MemberReferenceID && !hasAllKeys(group, requiredKeys) {
+			if group[0].CustomerReferenceID == log.CustomerReferenceID && !hasAllKeys(group, requiredKeys) {
 				keyExists := false
 				for _, existingLog := range group {
 					if existingLog.EventKey == log.EventKey {

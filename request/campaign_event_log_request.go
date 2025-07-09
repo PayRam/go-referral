@@ -7,8 +7,8 @@ type GetCampaignEventLogRequest struct {
 	IDs                  []uint               `form:"ids"`      // Filter by ID
 	CampaignIDs          []uint               `form:"campaignIDs"`
 	EventIDs             []uint               `form:"eventIDs"`
-	MemberIDs            []uint               `form:"memberIDs"`
-	MemberReferenceIDs   []string             `form:"memberReferenceIDs"`
+	CustomerIDs            []uint               `form:"memberIDs"`
+	CustomerReferenceIDs   []string             `form:"memberReferenceIDs"`
 	Status               []string             `form:"status"`
 	EventLogIDs          []uint               `form:"eventLogIDs"`
 	ReferredRewardIDs    []uint               `form:"referredRewardIDs"`
@@ -30,11 +30,11 @@ func ApplyGetCampaignEventLogRequest(req GetCampaignEventLogRequest, query *gorm
 	if len(req.EventIDs) > 0 {
 		query = query.Where("referral_campaign_event_logs.event_id IN (?)", req.EventIDs)
 	}
-	if len(req.MemberIDs) > 0 {
-		query = query.Where("referral_campaign_event_logs.member_id IN (?)", req.MemberIDs)
+	if len(req.CustomerIDs) > 0 {
+		query = query.Where("referral_campaign_event_logs.member_id IN (?)", req.CustomerIDs)
 	}
-	if len(req.MemberReferenceIDs) > 0 {
-		query = query.Where("referral_campaign_event_logs.member_reference_id IN (?)", req.MemberReferenceIDs)
+	if len(req.CustomerReferenceIDs) > 0 {
+		query = query.Where("referral_campaign_event_logs.member_reference_id IN (?)", req.CustomerReferenceIDs)
 	}
 	if len(req.Status) > 0 {
 		query = query.Where("referral_campaign_event_logs.status IN (?)", req.Status)
