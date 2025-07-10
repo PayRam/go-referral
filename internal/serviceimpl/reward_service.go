@@ -2,11 +2,12 @@ package serviceimpl
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/PayRam/go-referral/models"
 	"github.com/PayRam/go-referral/request"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
-	"time"
 )
 
 type rewardService struct {
@@ -126,19 +127,19 @@ func (s *rewardService) GetNewReferrerCount(req request.GetRewardRequest) (int64
 
 	// Query to find unique ReferredByMemberReferenceID within the provided date range
 	subQuery := s.DB.Table("referral_rewards").
-		Select("referred_by_member_reference_id").
+		Select("referred_by_customer_reference_id").
 		Where("created_at < ?", req.PaginationConditions.StartDate)
 
 	query := s.DB.Table("referral_rewards r").
-		Distinct("r.referred_by_member_reference_id").
+		Distinct("r.referred_by_customer_reference_id").
 		Where("r.created_at BETWEEN ? AND ?", req.PaginationConditions.StartDate, req.PaginationConditions.EndDate).
-		Where("r.referred_by_member_reference_id NOT IN (?)", subQuery)
+		Where("r.referred_by_customer_reference_id NOT IN (?)", subQuery)
 
 	query = request.ApplyGetRewardRequest(req, query)
 
-	// Execute the query to count distinct new referred_by_member_reference_id
+	// Execute the query to count distinct new referred_by_customer_reference_id
 	if err := query.Count(&count).Error; err != nil {
-		return 0, fmt.Errorf("failed to count new referred_by_member_reference_id: %w", err)
+		return 0, fmt.Errorf("failed to count new referred_by_customer_reference_id: %w", err)
 	}
 
 	return count, nil
@@ -185,20 +186,20 @@ func (s *rewardService) GetNewRefereeCount(req request.GetRewardRequest) (int64,
 
 	// Query to find unique RefereeMemberReferenceID within the provided date range
 	subQuery := s.DB.Table("referral_rewards").
-		Select("referee_member_reference_id").
+		Select("referee_customer_reference_id").
 		Where("created_at < ?", req.PaginationConditions.StartDate)
 
 	query := s.DB.Table("referral_rewards r").
-		Distinct("r.referee_member_reference_id").
+		Distinct("r.referee_customer_reference_id").
 		Where("r.created_at BETWEEN ? AND ?", req.PaginationConditions.StartDate, req.PaginationConditions.EndDate).
-		Where("r.referee_member_reference_id NOT IN (?)", subQuery)
+		Where("r.referee_customer_reference_id NOT IN (?)", subQuery)
 
 	// Apply filters
 	query = request.ApplyGetRewardRequest(req, query)
 
 	// Execute the query to count distinct new referee_reference_ids
 	if err := query.Count(&count).Error; err != nil {
-		return 0, fmt.Errorf("failed to count new referee_member_reference_id: %w", err)
+		return 0, fmt.Errorf("failed to count new referee_customer_reference_id: %w", err)
 	}
 
 	return count, nil

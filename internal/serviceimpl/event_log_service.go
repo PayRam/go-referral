@@ -30,9 +30,9 @@ func (s *eventLogService) CreateEventLog(project string, req request.CreateEvent
 	}
 
 	// 🔹 Step 2: Fetch the Customer using ReferenceID
-	var member models.Customer
-	if err := s.DB.Where("project = ? AND reference_id = ?", project, req.ReferenceID).First(&member).Error; err != nil {
-		return nil, fmt.Errorf("failed to fetch member with reference ID '%s' for project '%s': %w", req.ReferenceID, project, err)
+	var customer models.Customer
+	if err := s.DB.Where("project = ? AND reference_id = ?", project, req.ReferenceID).First(&customer).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch customer with reference ID '%s' for project '%s': %w", req.ReferenceID, project, err)
 	}
 
 	// 🔹 Step 3: Validate Amount based on Event Type
@@ -50,7 +50,7 @@ func (s *eventLogService) CreateEventLog(project string, req request.CreateEvent
 	eventLog := &models.EventLog{
 		Project:             project,
 		EventKey:            req.EventKey,
-		CustomerID:          member.ID,       // ✅ Store the Customer ID
+		CustomerID:          customer.ID,     // ✅ Store the Customer ID
 		CustomerReferenceID: req.ReferenceID, // ✅ Keep Reference ID for consistency
 		Amount:              req.Amount,
 		TriggeredAt:         time.Now().UTC(),

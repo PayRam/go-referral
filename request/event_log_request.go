@@ -16,7 +16,7 @@ type GetEventLogRequest struct {
 	Projects             []string             `form:"projects"` // Filter by name
 	ID                   *uint                `form:"id"`       // Filter by ID
 	EventKey             *string              `form:"eventKey"`
-	CustomerReferenceID    *string              `form:"referenceID"`
+	CustomerReferenceID  *string              `form:"referenceID"`
 	Status               *string              `form:"status"`               // Composite key with Project
 	RewardID             *uint                `form:"rewardID"`             // Nullable to allow logs without an associated reward
 	PaginationConditions PaginationConditions `form:"paginationConditions"` // Embedded pagination and sorting struct
@@ -34,7 +34,7 @@ func ApplyGetEventLogRequest(req GetEventLogRequest, query *gorm.DB) *gorm.DB {
 		query = query.Where("referral_event_logs.event_key = ?", *req.EventKey)
 	}
 	if req.CustomerReferenceID != nil {
-		query = query.Where("referral_event_logs.member_reference_id = ?", *req.CustomerReferenceID)
+		query = query.Where("referral_event_logs.customer_reference_id = ?", *req.CustomerReferenceID)
 	}
 	if req.Status != nil {
 		query = query.Where("referral_event_logs.status = ?", *req.Status)

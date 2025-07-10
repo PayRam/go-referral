@@ -90,15 +90,15 @@ func (w *worker) ProcessPendingEvents() error {
 				project := campaign.Project
 				refereeReferenceID := logs[0].CustomerReferenceID
 
-				var member models.Customer
+				var customer models.Customer
 				if err := tx.Preload("ReferredByCustomer").
 					Where("project = ? AND reference_id = ?", campaign.Project, refereeReferenceID).
-					First(&member).Error; err != nil {
+					First(&customer).Error; err != nil {
 					fmt.Printf("failed to fetch referee for project %s and reference_id %s: %v\n", campaign.Project, refereeReferenceID, err)
 					return err
 				}
 
-				if member.ReferredByCustomer == nil || member.ReferredByCustomer.Status != "active" {
+				if customer.ReferredByCustomer == nil || customer.ReferredByCustomer.Status != "active" {
 					fmt.Printf("Customer is either nil or inactive for reference_id %s\n", refereeReferenceID)
 					return nil
 				}
@@ -110,9 +110,9 @@ func (w *worker) ProcessPendingEvents() error {
 
 				if campaign.CampaignTypePerCustomer == "one_time" {
 					var existingReward models.Reward
-					if err := tx.Where("project = ? AND campaign_id = ? AND rewarded_member_reference_id = ?",
-						project, campaign.ID, member.ReferredByCustomer.ReferenceID).First(&existingReward).Error; err == nil {
-						return fmt.Errorf("reward already exists for campaign %d and referrer %s", campaign.ID, member.ReferredByCustomer.ReferenceID)
+					if err := tx.Where("project = ? AND campaign_id = ? AND rewarded_customer_reference_id = ?",
+						project, campaign.ID, customer.ReferredByCustomer.ReferenceID).First(&existingReward).Error; err == nil {
+						return fmt.Errorf("reward already exists for campaign %d and referrer %s", campaign.ID, customer.ReferredByCustomer.ReferenceID)
 					}
 				}
 
@@ -129,7 +129,7 @@ func (w *worker) ProcessPendingEvents() error {
 						referrerRewardAmount = campaign.RewardCap
 					}
 
-					err = w.validateReward(tx, err, project, campaign, member.ReferredByCustomer.ReferenceID, referrerRewardAmount)
+					err = w.validateReward(tx, err, project, campaign, customer.ReferredByCustomer.ReferenceID, referrerRewardAmount)
 					if err != nil {
 						return err
 					}
@@ -139,7 +139,7 @@ func (w *worker) ProcessPendingEvents() error {
 						refereeRewardAmount = campaign.InviteeRewardCap
 					}
 
-					err = w.validateReward(tx, err, project, campaign, member.ReferenceID, refereeRewardAmount)
+					err = w.validateReward(tx, err, project, campaign, customer.ReferenceID, refereeRewardAmount)
 					if err != nil {
 						return err
 					}
@@ -192,10 +192,10 @@ func (w *worker) ProcessPendingEvents() error {
 						Project:                   project,
 						CampaignID:                campaign.ID,
 						CurrencyCode:              campaign.CurrencyCode,
-						RewardedCustomerID:          member.ReferredByCustomer.ID,
-						RewardedCustomerReferenceID: member.ReferredByCustomer.ReferenceID,
-						RelatedCustomerID:           member.ID,
-						RelatedCustomerReferenceID:  member.ReferenceID,
+						RewardedCustomerID:          customer.ReferredByCustomer.ID,
+						RewardedCustomerReferenceID: customer.ReferredByCustomer.ReferenceID,
+						RelatedCustomerID:           customer.ID,
+						RelatedCustomerReferenceID:  customer.ReferenceID,
 						CustomerType:                "referrer",
 						Amount:                    *referrerRewardAmount,
 						Status:                    "pending",
@@ -211,10 +211,10 @@ func (w *worker) ProcessPendingEvents() error {
 						Project:                   project,
 						CampaignID:                campaign.ID,
 						CurrencyCode:              campaign.CurrencyCode,
-						RewardedCustomerID:          member.ID,
-						RewardedCustomerReferenceID: member.ReferenceID,
-						RelatedCustomerID:           member.ReferredByCustomer.ID,
-						RelatedCustomerReferenceID:  member.ReferredByCustomer.ReferenceID,
+						RewardedCustomerID:          customer.ID,
+						RewardedCustomerReferenceID: customer.ReferenceID,
+						RelatedCustomerID:           customer.ReferredByCustomer.ID,
+						RelatedCustomerReferenceID:  customer.ReferredByCustomer.ReferenceID,
 						CustomerType:                "referee",
 						Amount:                    *refereeRewardAmount,
 						Status:                    "pending",
@@ -232,8 +232,8 @@ func (w *worker) ProcessPendingEvents() error {
 						Project:           campaign.Project,
 						CampaignID:        campaign.ID,
 						EventID:           event.ID,                  // Assuming you have eventID from previous logic
-						CustomerID:          logs[i].CustomerID,          // Assuming you have memberID from previous logic
-						CustomerReferenceID: logs[i].CustomerReferenceID, // Assuming you have memberReferenceID from previous logic
+						CustomerID:          logs[i].CustomerID,          // Assuming you have customerID from previous logic
+						CustomerReferenceID: logs[i].CustomerReferenceID, // Assuming you have customerReferenceID from previous logic
 						Status:            "processed",
 						EventLogID:        eventLogID,
 					}
@@ -306,7 +306,7 @@ func (w *worker) GetTotalRewardByCustomer(
 	var rewardsCount int64
 
 	err := tx.Model(&models.Reward{}).
-		Where("project = ? AND campaign_id = ? AND rewarded_member_reference_id = ?", project, campaignID, referrerReferenceID).
+		Where("project = ? AND campaign_id = ? AND rewarded_customer_reference_id = ?", project, campaignID, referrerReferenceID).
 		Select("COALESCE(SUM(amount), 0), MIN(created_at), COUNT(*)").
 		Row().Scan(&totalReward, &firstRewardMonth, &rewardsCount)
 

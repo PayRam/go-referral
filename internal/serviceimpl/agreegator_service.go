@@ -189,7 +189,7 @@ func (s *aggregatorService) GetRewardsStats(req request.GetRewardRequest) ([]res
 		SELECT
 			%s AS date,
 			SUM(amount) AS total_rewards,
-			COUNT(DISTINCT rewarded_member_reference_id) AS unique_referrers
+			COUNT(DISTINCT rewarded_customer_reference_id) AS unique_referrers
 		FROM referral_rewards
 		WHERE created_at BETWEEN
 			COALESCE($2, (SELECT MIN(created_at) FROM referral_rewards)) AND

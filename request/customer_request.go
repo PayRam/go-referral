@@ -56,7 +56,7 @@ func ApplyGetCustomerRequest(req GetCustomerRequest, query *gorm.DB) *gorm.DB {
 		query = query.Where("referral_customers.referred_by_customer_id = ?", *req.ReferredByCustomerID)
 	}
 	if req.ReferredByCustomerReferenceID != nil {
-		query = query.Where("referral_customers.referred_by_member_reference_id = ?", *req.ReferredByCustomerReferenceID)
+		query = query.Where("referral_customers.referred_by_customer_reference_id = ?", *req.ReferredByCustomerReferenceID)
 	}
 	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
 		// Join with referral_customers_campaigns table to filter by CampaignIDs

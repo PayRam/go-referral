@@ -37,7 +37,7 @@ func (s *referrerService) CreateCustomer(project string, req request.CreateCusto
 	var referredByCustomerID *uint
 	var referredByCustomerReferenceID *string
 
-	// 🔹 Step 1: Fetch the existing member by `ReferrerCode`
+	// 🔹 Step 1: Fetch the existing customer by `ReferrerCode`
 	if req.ReferrerCode != nil && *req.ReferrerCode != "" {
 		var referrerCustomer models.Customer
 		if err := s.DB.Where("project = ? AND code = ?", project, *req.ReferrerCode).
@@ -57,8 +57,8 @@ func (s *referrerService) CreateCustomer(project string, req request.CreateCusto
 		req.PreferredCode = &code
 	}
 
-	// 🔹 Step 3: Create the new member with `ReferredByCustomerID`
-	member := &models.Customer{
+	// 🔹 Step 3: Create the new customer with `ReferredByCustomerID`
+	customer := &models.Customer{
 		Project:                       project,
 		Code:                          *req.PreferredCode,
 		ReferenceID:                   req.ReferenceID,
@@ -67,10 +67,10 @@ func (s *referrerService) CreateCustomer(project string, req request.CreateCusto
 		ReferredByCustomerReferenceID: referredByCustomerReferenceID,
 	}
 
-	// 🔹 Step 4: Use a transaction to save the member and associate campaigns
+	// 🔹 Step 4: Use a transaction to save the customer and associate campaigns
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
-		// Save the new member
-		if err := tx.Create(member).Error; err != nil {
+		// Save the new customer
+		if err := tx.Create(customer).Error; err != nil {
 			return err
 		}
 
@@ -79,7 +79,7 @@ func (s *referrerService) CreateCustomer(project string, req request.CreateCusto
 			for _, campaignID := range req.CampaignIDs {
 				association := &models.CustomerCampaign{
 					Project:    project,
-					CustomerID: member.ID,
+					CustomerID: customer.ID,
 					CampaignID: campaignID,
 				}
 				if err := tx.Create(association).Error; err != nil {
@@ -95,12 +95,12 @@ func (s *referrerService) CreateCustomer(project string, req request.CreateCusto
 		return nil, err
 	}
 
-	// 🔹 Step 5: Reload the member with preloaded campaigns and referrer
-	if err := s.DB.Preload("Campaigns").Preload("ReferredByCustomer").First(member, member.ID).Error; err != nil {
-		return nil, fmt.Errorf("failed to preload member data: %w", err)
+	// 🔹 Step 5: Reload the customer with preloaded campaigns and referrer
+	if err := s.DB.Preload("Campaigns").Preload("ReferredByCustomer").First(customer, customer.ID).Error; err != nil {
+		return nil, fmt.Errorf("failed to preload customer data: %w", err)
 	}
 
-	return member, nil
+	return customer, nil
 }
 
 func (s *referrerService) GetCustomers(req request.GetCustomerRequest) ([]models.Customer, int64, error) {
