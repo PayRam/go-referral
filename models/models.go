@@ -89,7 +89,7 @@ type Customer struct {
 }
 
 func (Customer) TableName() string {
-	return "referral_customers"
+	return "referral_members"
 }
 
 type CustomerCampaign struct {

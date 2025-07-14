@@ -31,38 +31,38 @@ type GetCustomerRequest struct {
 func ApplyGetCustomerRequest(req GetCustomerRequest, query *gorm.DB) *gorm.DB {
 	// Apply filters with explicit table name
 	if req.Projects != nil && len(req.Projects) > 0 {
-		query = query.Where("referral_customers.project IN (?)", req.Projects)
+		query = query.Where("referral_members.project IN (?)", req.Projects)
 	}
 	if req.ID != nil {
-		query = query.Where("referral_customers.id = ?", *req.ID)
+		query = query.Where("referral_members.id = ?", *req.ID)
 	}
 	if req.ReferenceID != nil {
-		query = query.Where("referral_customers.reference_id = ?", *req.ReferenceID)
+		query = query.Where("referral_members.reference_id = ?", *req.ReferenceID)
 	}
 	if req.Email != nil {
-		query = query.Where("referral_customers.email = ?", *req.Email)
+		query = query.Where("referral_members.email = ?", *req.Email)
 	}
 	if req.Code != nil {
-		query = query.Where("referral_customers.code = ?", *req.Code)
+		query = query.Where("referral_members.code = ?", *req.Code)
 	}
 	if req.IsReferred != nil {
 		if *req.IsReferred {
-			query = query.Where("referral_customers.referred_by_customer_id IS NOT NULL")
+			query = query.Where("referral_members.referred_by_customer_id IS NOT NULL")
 		} else {
-			query = query.Where("referral_customers.referred_by_customer_id IS NULL")
+			query = query.Where("referral_members.referred_by_customer_id IS NULL")
 		}
 	}
 	if req.ReferredByCustomerID != nil {
-		query = query.Where("referral_customers.referred_by_customer_id = ?", *req.ReferredByCustomerID)
+		query = query.Where("referral_members.referred_by_customer_id = ?", *req.ReferredByCustomerID)
 	}
 	if req.ReferredByCustomerReferenceID != nil {
-		query = query.Where("referral_customers.referred_by_customer_reference_id = ?", *req.ReferredByCustomerReferenceID)
+		query = query.Where("referral_members.referred_by_customer_reference_id = ?", *req.ReferredByCustomerReferenceID)
 	}
 	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
-		// Join with referral_customers_campaigns table to filter by CampaignIDs
-		query = query.Joins("JOIN referral_customers_campaigns rc ON rc.referrer_id = referral_customers.id").
+		// Join with referral_members_campaigns table to filter by CampaignIDs
+		query = query.Joins("JOIN referral_members_campaigns rc ON rc.referrer_id = referral_members.id").
 			Where("rc.campaign_id IN (?)", req.CampaignIDs).
-			Group("referral_customers.id") // Avoid duplicates due to the JOIN
+			Group("referral_members.id") // Avoid duplicates due to the JOIN
 	}
 	return query
 }

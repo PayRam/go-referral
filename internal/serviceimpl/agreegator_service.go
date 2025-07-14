@@ -27,42 +27,42 @@ func (s *aggregatorService) GetReferrerCustomersStats(req request.GetCustomerReq
 	var totalCount int64
 
 	// Build base query for referrers
-	query := s.DB.Table("referral_customers").
+	query := s.DB.Table("referral_members").
 		Select(`
-			referral_customers.id AS id,
-			referral_customers.project AS project,
-			referral_customers.email AS email,
-			referral_customers.reference_id AS reference_id,
-			referral_customers.code AS code,
+			referral_members.id AS id,
+			referral_members.project AS project,
+			referral_members.email AS email,
+			referral_members.reference_id AS reference_id,
+			referral_members.code AS code,
 			COUNT(DISTINCT rr.id) AS referee_count,
 			COALESCE(CAST(SUM(re.amount) AS TEXT), '0') AS total_rewards,
 			CASE 
-				WHEN referral_customers.referred_by_customer_id IS NOT NULL AND referral_customers.referred_by_customer_id > 0 
+				WHEN referral_members.referred_by_customer_id IS NOT NULL AND referral_members.referred_by_customer_id > 0 
 				THEN TRUE 
 				ELSE FALSE 
 			END AS is_referred,
-			referral_customers.created_at AS created_at,
-			referral_customers.updated_at AS updated_at,
-			COALESCE(CAST(referral_customers.deleted_at AS TEXT), '') AS deleted_at 
+			referral_members.created_at AS created_at,
+			referral_members.updated_at AS updated_at,
+			COALESCE(CAST(referral_members.deleted_at AS TEXT), '') AS deleted_at 
 		`).
 		Joins(`
-			LEFT JOIN referral_customers rr ON referral_customers.id = rr.referred_by_customer_id AND referral_customers.project = rr.project
+			LEFT JOIN referral_members rr ON referral_members.id = rr.referred_by_customer_id AND referral_members.project = rr.project
 		`).
 		Joins(`
-			LEFT JOIN referral_rewards re ON referral_customers.id = re.rewarded_customer_id AND referral_customers.project = re.project
+			LEFT JOIN referral_rewards re ON referral_members.id = re.rewarded_customer_id AND referral_members.project = re.project
 		`)
 
 	// Apply campaign IDs filter if provided
 	if req.CampaignIDs != nil && len(req.CampaignIDs) > 0 {
 		query = query.Joins(`
-			JOIN referral_customers_campaigns rc ON rc.customer_id = referral_customers.id AND rc.project = referral_customers.project
+			JOIN referral_members_campaigns rc ON rc.customer_id = referral_members.id AND rc.project = referral_members.project
 		`).Where("rc.campaign_id IN (?)", req.CampaignIDs)
 	}
 
 	// **Fix Grouping Issues**
 	query = query.Group(`
-		referral_customers.id, referral_customers.project, referral_customers.email, referral_customers.reference_id,
-		referral_customers.code, referral_customers.created_at, referral_customers.updated_at, referral_customers.deleted_at
+		referral_members.id, referral_members.project, referral_members.email, referral_members.reference_id,
+		referral_members.code, referral_members.created_at, referral_members.updated_at, referral_members.deleted_at
 	`)
 
 	// Apply filters
